@@ -231,6 +231,12 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
 .note b{color:var(--ink);font-weight:600}
 .note.bad{border-left-color:var(--bad)}
 .note.warn{border-left-color:var(--warn)}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+  background:var(--panel2);border:1px solid var(--line2);
+  border-radius:999px;padding:7px 8px 7px 16px;display:flex;gap:9px;
+  align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.55);
+  font-size:12.5px;color:var(--dim);z-index:60;max-width:calc(100vw - 24px)}
+.toast b{color:var(--ink);font-family:var(--mono)}
 /* the last-N strip: one mark per game, oldest first, 2px of surface
    between them so adjacent games never read as one block */
 .strip{display:inline-flex;gap:2px;vertical-align:-2px}
@@ -1746,6 +1752,30 @@ function wireRefresh(){
     // would be nonsense, so the control goes away and the header says
     // where the numbers came from instead.
     $("#refresh").classList.add("hide");
+    // But the board underneath does change, every night, and a tab left
+    // open would otherwise sit on a slate that has already been played
+    // -- or on an older version of the page itself. So it watches for a
+    // newer build and offers the reload rather than taking it: nobody
+    // wants a page reloading itself while they are reading a table.
+    let told=false;
+    const look=async()=>{
+      if(told)return;
+      try{
+        const m=await (await fetch("/api/meta",{cache:"no-store"})).json();
+        if(!m||!m.built||m.built===D.meta.built)return;
+        told=true;
+        const t=el("div","toast",
+          `<span>A newer board was published <b>${m.built}</b>`
+          +`${m.slate!==D.meta.slate?` &mdash; slate ${m.slate}`:""}</span>`);
+        const go=el("button","go","Reload"), no=el("button","ghost","Later");
+        go.onclick=()=>location.reload();
+        no.onclick=()=>t.remove();
+        t.append(go,no);
+        document.body.append(t);
+      }catch(e){}
+    };
+    look();
+    setInterval(look,300000);
     return;
   }
   if(!TOKEN){
