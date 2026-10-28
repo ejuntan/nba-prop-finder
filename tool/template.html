@@ -168,6 +168,11 @@ h3 .dim{text-transform:none;letter-spacing:0;font-weight:400}
   font-size:12px;color:var(--dim)}
 #refresh label{display:flex;gap:4px;align-items:center;cursor:pointer}
 #rf[disabled]{opacity:.45;cursor:not-allowed}
+/* .hide is a bare class and these are an id and a descendant of one, so
+   both outrank it and the control stayed on screen when it was told to
+   go away. The public site has no pipeline behind it, so a Refresh
+   button there is a button that does nothing. */
+#refresh.hide,#refresh label.hide{display:none}
 #rfpanel{margin-bottom:14px}
 .rflog{margin:8px 0 0;max-height:210px;overflow:auto;background:var(--bg);
   border:1px solid var(--line);border-radius:6px;padding:8px 10px;
