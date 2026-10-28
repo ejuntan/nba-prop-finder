@@ -21,7 +21,9 @@ files; a push is a deploy.
 Routes: /  the board, /healthz  for the platform, /api/meta  what this
 copy was built from.
 """
+import base64
 import gzip
+import hmac
 import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -30,6 +32,11 @@ DIR = os.path.dirname(os.path.abspath(__file__))
 TPL = os.path.join(DIR, "template.html")
 DATA = os.path.join(DIR, "data.json")
 PORT = int(os.environ.get("PORT", "8000"))
+# Unset means the board is public, which is what The Odds API's terms
+# allow: displaying their data in a website is permitted, reselling it as
+# a feed is not. Set it in the Render dashboard to put the whole site
+# behind one password -- any username, so there is no account to manage.
+PASSWORD = os.environ.get("SITE_PASSWORD", "")
 
 _page = None          # the spliced page, built once and kept
 
@@ -90,16 +97,42 @@ class H(BaseHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(body)
 
+    def _allowed(self):
+        """Basic auth, only when a password has been set.
+
+        Compared with compare_digest so the check does not leak the
+        password's length through its timing, and the whole site is
+        behind it -- there is nothing here worth protecting selectively."""
+        if not PASSWORD:
+            return True
+        hdr = self.headers.get("Authorization") or ""
+        if hdr.startswith("Basic "):
+            try:
+                raw = base64.b64decode(hdr[6:]).decode("utf-8", "replace")
+            except Exception:
+                raw = ""
+            if hmac.compare_digest(raw.partition(":")[2], PASSWORD):
+                return True
+        self.send_response(401)
+        self.send_header("WWW-Authenticate", 'Basic realm="board"')
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return False
+
     def do_GET(self):
         path = self.path.split("?")[0]
+        # The platform's health check must answer before the password, or
+        # a protected site reads as a failed deploy and never goes live.
+        if path == "/healthz":
+            return self._send(200, "ok", "text/plain")
+        if not self._allowed():
+            return
         if path in ("/", "/index.html"):
             try:
                 return self._send(200, page(), "text/html; charset=utf-8")
             except FileNotFoundError:
                 return self._send(503, "no board has been published yet",
                                   "text/plain")
-        if path == "/healthz":
-            return self._send(200, "ok", "text/plain")
         if path == "/api/meta":
             return self._send(200, json.dumps(meta()), "application/json")
         self._send(404, "not found", "text/plain")
@@ -113,5 +146,7 @@ class H(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     m = meta()
     print(f"serving {m.get('slate', '?')} (built {m.get('built', '?')}) "
-          f"on 0.0.0.0:{PORT}", flush=True)
+          f"on 0.0.0.0:{PORT}"
+          f"{' -- password protected' if PASSWORD else ' -- public'}",
+          flush=True)
     ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()
