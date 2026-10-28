@@ -1,0 +1,1484 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NBA Prop Research</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0e1116; --panel:#161b22; --panel2:#1c232c; --line:#2a323d;
+  --ink:#e6edf3; --dim:#8b97a6; --dim2:#5c6673;
+  --good:#3fb950; --bad:#f85149; --warn:#d29922; --accent:#58a6ff;
+  /* The chart's two marks are a diverging pair -- warm and cool poles
+     around the line, not a verdict on which side is the good one. Both are
+     validated against the dark surfaces they sit on (CVD dE 19.2,
+     normal-vision 29.0, contrast >= 3:1), and both carry a text label in
+     the legend so colour never has to say it alone. */
+  --over:#3987e5; --under:#e66767;
+  --grid:#2c3038;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+.wrap{max-width:1400px;margin:0 auto;padding:16px 16px 56px}
+header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  margin-bottom:10px}
+h1{font-size:17px;margin:0;letter-spacing:-.2px;font-weight:600}
+.sub{color:var(--dim);font-size:12px}
+.sub b{color:var(--ink);font-weight:500}
+nav{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:14px;
+  overflow-x:auto}
+nav button{background:none;border:0;border-bottom:2px solid transparent;
+  color:var(--dim);padding:7px 12px;font-size:13px;cursor:pointer;
+  white-space:nowrap;font-weight:500}
+nav button.on{color:var(--ink);border-bottom-color:var(--accent)}
+nav button:hover{color:var(--ink)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  padding:12px 14px;margin-bottom:12px}
+.bar-row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;
+  font-size:12px;color:var(--dim)}
+.bar-row label{display:flex;gap:5px;align-items:center}
+select,input,textarea{background:var(--panel2);color:var(--ink);
+  border:1px solid var(--line);border-radius:6px;padding:4px 7px;font-size:13px;
+  font-family:inherit}
+input[type=number]{width:66px;font-family:var(--mono)}
+textarea{width:100%;font-family:var(--mono);font-size:12.5px;min-height:84px;
+  resize:vertical}
+button.go{background:var(--accent);color:#fff;border:0;border-radius:6px;
+  padding:5px 12px;font-size:13px;cursor:pointer;font-weight:500}
+button.ghost{background:none;color:var(--dim);border:1px solid var(--line);
+  border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer}
+button.ghost:hover{color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line);
+  white-space:nowrap}
+th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;
+  letter-spacing:.3px;background:var(--panel);user-select:none}
+.scroll th{position:sticky;top:0;cursor:pointer}
+.scroll th:hover{color:var(--ink)}
+th.l,td.l{text-align:left}
+tbody tr:hover{background:var(--panel2)}
+tbody tr:last-child td{border-bottom:0}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+.dim{color:var(--dim)} .dim2{color:var(--dim2)}
+.pill{display:inline-block;padding:0 5px;border-radius:999px;font-size:10.5px;
+  border:1px solid var(--line);color:var(--dim);vertical-align:1px}
+.pill.out{color:var(--bad);border-color:var(--bad)}
+.pill.q{color:var(--warn);border-color:var(--warn)}
+.scroll{max-height:74vh;overflow:auto;border:1px solid var(--line);
+  border-radius:8px;background:var(--panel)}
+.scroll table{font-size:12.5px}
+tr.outrow td{color:var(--dim2)}
+tr.outrow td.l .name{color:var(--dim);font-weight:400}
+.banner{border:1px solid var(--bad);border-radius:7px;padding:9px 12px;
+  margin-bottom:12px;font-size:13px;color:var(--ink);
+  background:color-mix(in srgb,var(--bad) 10%,transparent)}
+.banner b{color:var(--bad)}
+.name{cursor:pointer;font-weight:500}
+.name:hover{color:var(--accent)}
+/* One short line, with the long version a click away. */
+.hint{color:var(--dim);font-size:11.5px;margin-top:7px;display:flex;gap:6px;
+  align-items:baseline}
+.hint .more{cursor:pointer;color:var(--accent);white-space:nowrap}
+.longform{color:var(--dim);font-size:12px;line-height:1.6;margin-top:8px;
+  max-width:68ch}
+.longform p{margin:0 0 7px}
+.fold{cursor:pointer;color:var(--dim);font-size:11px;text-transform:uppercase;
+  letter-spacing:.3px;font-weight:600;background:none;border:0;padding:8px 0 0;
+  display:flex;align-items:center;gap:5px}
+.fold:hover{color:var(--ink)}
+.fold .car{display:inline-block;transition:transform .12s}
+.fold.open .car{transform:rotate(90deg)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));
+  gap:6px 26px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:12.5px;
+  align-content:start}
+.kv div:nth-child(odd){color:var(--dim)}
+.bar{height:4px;background:var(--panel2);border-radius:3px;overflow:hidden;
+  display:inline-block}
+.bar i{display:block;height:100%}
+h2{font-size:15px;margin:0 0 9px;font-weight:600}
+h2 .dim{font-weight:400;font-size:13px}
+h3{font-size:11px;margin:0 0 8px;color:var(--dim);text-transform:uppercase;
+  letter-spacing:.4px;font-weight:600}
+h3 .dim{text-transform:none;letter-spacing:0;font-weight:400}
+.hide{display:none}
+/* typable player picker */
+.combo{position:relative;display:inline-block}
+.combo input{width:210px}
+.menu{position:absolute;z-index:40;top:calc(100% + 3px);left:0;min-width:240px;
+  max-height:270px;overflow:auto;background:var(--panel);
+  border:1px solid var(--line);border-radius:7px;
+  box-shadow:0 8px 22px rgba(0,0,0,.28);padding:3px}
+.menu div{padding:5px 8px;border-radius:5px;cursor:pointer;font-size:13px;
+  display:flex;justify-content:space-between;gap:14px;white-space:nowrap}
+.menu div.on{background:var(--accent);color:#fff}
+.menu div.on .dim{color:#dbeafe}
+.menu .empty{color:var(--dim);cursor:default}
+/* last-N over/under chart */
+.chart{margin:2px 0 12px}
+.chart-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
+  margin-bottom:10px}
+.hero{font-size:19px;font-weight:600;letter-spacing:-.2px}
+.hero b{font-family:var(--mono)}
+.hero .o{color:var(--over)} .hero .u{color:var(--under)}
+.hero .sep{color:var(--dim2);font-weight:400;margin:0 7px}
+.hero small{font-size:12px;color:var(--dim);font-weight:400;margin-left:4px}
+.legend{display:flex;gap:14px;font-size:11.5px;color:var(--dim)}
+.legend span{display:flex;align-items:center;gap:5px}
+.sw{width:9px;height:9px;border-radius:2px;display:inline-block}
+.sw.o{background:var(--over)} .sw.u{background:var(--under)}
+.plot{position:relative;height:140px}
+.cols,.xrow{display:flex;gap:2px;align-items:flex-end;height:100%}
+.xrow{height:auto;align-items:flex-start;margin-top:5px}
+.col{flex:1 1 0;min-width:0;display:flex;justify-content:center}
+/* Not a flex row: the opponent and the date stack, and a flex container
+   would lay the line break out beside the text instead of under it. */
+.xc{flex:1 1 0;min-width:0;display:block}
+.col i{display:block;width:100%;max-width:24px;border-radius:4px 4px 0 0}
+.col i.o{background:var(--over)} .col i.u{background:var(--under)}
+.col:hover i{filter:brightness(1.22)}
+.xc{font-size:10px;color:var(--dim);text-align:center;line-height:1.35;
+  overflow:hidden;white-space:nowrap}
+.xrow.tight .xc{font-size:9px}
+.base{position:absolute;left:0;right:0;bottom:0;border-top:1px solid var(--grid)}
+.thresh{position:absolute;left:0;right:0;border-top:2px solid var(--ink);
+  pointer-events:none}
+.thresh span{position:absolute;right:0;top:-9px;background:var(--panel);
+  padding:0 5px;font-size:10.5px;color:var(--ink);font-family:var(--mono)}
+.tip{position:absolute;z-index:30;background:var(--panel2);
+  border:1px solid var(--line);border-radius:6px;padding:5px 8px;
+  font-size:11.5px;pointer-events:none;white-space:nowrap;
+  box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.tip b{font-family:var(--mono)}
+/* the last-N strip: one mark per game, oldest first, 2px of surface
+   between them so adjacent games never read as one block */
+.strip{display:inline-flex;gap:2px;vertical-align:-2px}
+.strip i{width:7px;height:13px;border-radius:2px;display:inline-block}
+.strip i.o{background:var(--over)} .strip i.u{background:var(--under)}
+.strip i.p{background:var(--dim2)}
+.rec{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.rec b{font-weight:600}
+.src{font-size:9.5px;color:var(--dim2);text-transform:uppercase;
+  letter-spacing:.3px;margin-left:4px}
+.src.book{color:var(--accent)}
+/* refresh control: a button in the header, a progress panel under the nav */
+#refresh{display:flex;gap:8px;align-items:center;margin-left:auto;
+  font-size:12px;color:var(--dim)}
+#refresh label{display:flex;gap:4px;align-items:center;cursor:pointer}
+#rf[disabled]{opacity:.45;cursor:not-allowed}
+#rfpanel{margin-bottom:14px}
+.rflog{margin:8px 0 0;max-height:210px;overflow:auto;background:var(--bg);
+  border:1px solid var(--line);border-radius:6px;padding:8px 10px;
+  font:11.5px/1.5 var(--mono);color:var(--dim);white-space:pre-wrap;
+  word-break:break-word}
+.spin{display:inline-block;width:9px;height:9px;border-radius:50%;
+  border:2px solid var(--line);border-top-color:var(--accent);
+  animation:sp .7s linear infinite;vertical-align:-1px;margin-right:4px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(max-width:700px){
+  #refresh{margin-left:0}
+  .wrap{padding:12px 10px 44px}
+  .plot{height:110px}
+  .xc{font-size:9px}
+  th,td{padding:4px 5px}
+  .combo input{width:160px}
+}
+</style>
+<div class="wrap">
+<header>
+  <h1>NBA Prop Research</h1>
+  <div class="sub" id="sub"></div>
+  <div id="refresh">
+    <button class="ghost" id="rf">Refresh</button>
+    <label id="rflineswrap"><input type="checkbox" id="rflines"> + lines</label>
+    <label id="rfautowrap"><input type="checkbox" id="rfauto"> auto</label>
+    <span class="dim2" id="rfmsg"></span>
+  </div>
+</header>
+<nav>
+  <button data-t="trends" class="on">Trends</button>
+  <button data-t="board">Board</button>
+  <button data-t="sheet">Sheet</button>
+  <button data-t="player">Player</button>
+  <button data-t="method">Method</button>
+</nav>
+
+<div class="panel hide" id="rfpanel">
+  <div class="bar-row">
+    <b id="rfstate">Refreshing</b>
+    <span class="dim" id="rfnote"></span>
+    <button class="ghost hide" id="rfreload">Reload</button>
+    <button class="ghost" id="rfclose" style="margin-left:auto">Hide</button>
+  </div>
+  <pre class="rflog" id="rflog"></pre>
+</div>
+
+<section id="t-trends">
+  <div class="panel">
+    <div class="bar-row">
+      <select id="tstat"></select>
+      <select id="tgame"><option value="">All games</option></select>
+      <label>Last <select id="tlast">
+        <option>5</option><option selected>10</option>
+        <option>15</option><option>20</option></select></label>
+      <label>Only <select id="tsplit">
+        <option value="all">home and away</option>
+        <option value="home">home games</option>
+        <option value="away">away games</option></select></label>
+      <label>Min <input type="number" id="tminmin" value="15" step="1"></label>
+      <label><input type="checkbox" id="tseason"> This season only</label>
+      <label><input type="checkbox" id="tsig"> Beyond noise only</label>
+      <button class="ghost" id="treset">Reset</button>
+    </div>
+    <div class="hint"><span>How often each player has cleared
+      <b>tonight's</b> line &mdash; not the line those games were played
+      against.</span>
+      <span class="more" data-fold="t1">why that matters</span></div>
+    <div class="longform hide" id="f-t1">
+      <p>Nobody stores a line for every player for every past game, and
+      this tool has only kept its own since late October. So a record
+      here is tonight's number carried backwards: <i>if this line had
+      been up all along, how often would it have been beaten?</i> That is
+      the honest way to read a hit rate, and it is not the same question
+      as whether the line is wrong.</p>
+      <p>A lopsided record usually means one of two things, and neither
+      is an edge. The market may already have moved &mdash; a player on
+      8-of-10 overs is often a player whose line has climbed three points
+      since, so the old games clear a number nobody is offering any more.
+      Or his role changed, and the recent games are a different player
+      from the early ones; the <b>Min</b> column is there to show that.</p>
+      <p>Then there is the sample. Ten games of a coin flip gives eight
+      or more the same way about one time in nine, so a 8&ndash;2 record
+      on its own means very little. <b>Beyond noise</b> keeps only the
+      records far enough from even to be unlikely from a 50/50 line, and
+      even those are a starting point for a look, not a signal.</p>
+      <p>Where a book is quoting the market's line is used and marked
+      <span class="src book">book</span>; otherwise it is the model's own
+      even-money number, marked <span class="src">model</span>, and a
+      record against it only describes form. A window of ten or twenty
+      reaches back across the season break and can include playoff games,
+      which are a different sport for minutes &mdash; <b>This season
+      only</b> cuts it to games since October.</p>
+    </div>
+  </div>
+  <div class="scroll"><table id="tt"></table></div>
+</section>
+
+<section id="t-board" class="hide">
+  <div class="panel">
+    <div class="bar-row">
+      <select id="stat"></select>
+      <select id="game"><option value="">All games</option></select>
+      <label>Min <input type="number" id="minmin" value="15" step="1"></label>
+      <label>Odds <input type="number" id="oo" value="-110" step="5">
+        <input type="number" id="uo" value="-110" step="5"></label>
+      <label><input type="checkbox" id="onlyedge"> +EV only</label>
+      <label><input type="checkbox" id="onlybook"> Priced only</label>
+      <label><input type="checkbox" id="showout" checked> Ruled out</label>
+      <label><input type="checkbox" id="more"> More columns</label>
+      <button class="ghost" id="reset">Reset</button>
+    </div>
+    <div class="hint"><span id="boardhint">Type a book's line to price it
+      &mdash; edge and EV stay blank until you do.</span>
+      <span class="more" data-fold="b1">why</span></div>
+    <div class="longform hide" id="f-b1">
+      <p>Where a book is quoting, the <b>Line</b> is theirs and the prices
+      are theirs, and <b>Mkt</b> is the no-vig probability of the books on
+      that number &mdash; the median across them when three or more are
+      quoting, which is a far better estimate of the truth than any single
+      book. Edge is the model's probability minus that. Where nothing is
+      quoting, the line falls back to the model's own even-money number,
+      which is not a price anyone is offering, so edge and EV stay blank
+      until you type a real one.</p>
+      <p><b>Price</b> and <b>Book</b>, under More columns, are the best
+      price being offered on the side the model likes, and who is offering
+      it. The line shown is the one most books are on.</p>
+      <p>Every price is conditional on the player taking the floor.
+      Availability is reported, never multiplied in: an ungraded prop is a
+      refund, not a loss.</p>
+    </div>
+  </div>
+  <div class="scroll"><table id="bt"></table></div>
+</section>
+
+<section id="t-sheet" class="hide">
+  <div class="panel">
+    <textarea id="paste" spellcheck="false" placeholder="jokic, pra, 44.5, -115, -105
+sga, pts, 32.5, -120, +100
+tatum, reb, 8.5"></textarea>
+    <div class="bar-row" style="margin-top:8px">
+      <button class="go" id="run">Price them</button>
+      <button class="ghost" id="demo">Fill from tonight</button>
+      <span class="dim" id="pastemsg"></span>
+    </div>
+    <div class="hint"><span>One per line:
+      <span class="num">player, stat, line, over, under</span> &mdash; odds
+      optional.</span>
+      <span class="more" data-fold="s1">stat keys</span></div>
+    <div class="longform hide" id="f-s1">
+      <p class="num" id="statkeys"></p>
+      <p>Names can be partial or initials &mdash; <span class="num">sga</span>,
+      <span class="num">jokic</span>, <span class="num">kd</span> all resolve.
+      Commas, tabs or two spaces separate the fields.</p>
+    </div>
+  </div>
+  <div class="scroll"><table id="st"></table></div>
+</section>
+
+<section id="t-player" class="hide">
+  <div class="panel">
+    <div class="bar-row">
+      <span class="combo">
+        <input id="pq" type="text" autocomplete="off" spellcheck="false"
+               placeholder="Type a player&hellip;">
+        <div class="menu hide" id="pmenu"></div>
+      </span>
+      <select id="pstat"></select>
+      <label>Line <input type="number" id="pline" step="0.5" placeholder="auto"></label>
+      <label>Last <select id="plast">
+        <option>5</option><option selected>10</option>
+        <option>15</option><option>20</option></select></label>
+      <select id="pwin"></select>
+    </div>
+  </div>
+  <div id="pcard"></div>
+</section>
+
+<section id="t-method" class="hide"><div class="panel" id="method"></div></section>
+</div>
+<script>
+const D = /*DATA*/null/*DATA*/;
+/* Minted by serve.py as it serves the page, and left null in the file
+   itself. A refresh means running Python, so the button only works behind
+   that server; opened straight from disk it says so rather than failing. */
+const TOKEN = /*TOKEN*/null/*TOKEN*/;
+/* "local" when the page comes off this machine, "live" when it is served
+   by the public site, which has no pipeline behind it and no key. */
+const MODE = /*MODE*/"local"/*MODE*/;
+
+/* ---------- distribution maths, the same constants the backtest used ---- */
+function lgamma(x){
+  const g=[676.5203681218851,-1259.1392167224028,771.32342877765313,
+    -176.61502916214059,12.507343278686905,-0.13857109526572012,
+    9.9843695780195716e-6,1.5056327351493116e-7];
+  if(x<0.5) return Math.log(Math.PI/Math.sin(Math.PI*x))-lgamma(1-x);
+  x-=1; let a=0.99999999999980993, t=x+7.5;
+  for(let i=0;i<8;i++) a+=g[i]/(x+i+1);
+  return 0.5*Math.log(2*Math.PI)+(x+0.5)*Math.log(t)-t+Math.log(a);
+}
+function betacf(a,b,x){
+  const FPMIN=1e-300, EPS=3e-14;
+  let qab=a+b, qap=a+1, qam=a-1, c=1, d=1-qab*x/qap;
+  if(Math.abs(d)<FPMIN) d=FPMIN;
+  d=1/d; let h=d;
+  for(let m=1;m<=300;m++){
+    const m2=2*m;
+    let aa=m*(b-m)*x/((qam+m2)*(a+m2));
+    d=1+aa*d; if(Math.abs(d)<FPMIN) d=FPMIN;
+    c=1+aa/c; if(Math.abs(c)<FPMIN) c=FPMIN;
+    d=1/d; h*=d*c;
+    aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
+    d=1+aa*d; if(Math.abs(d)<FPMIN) d=FPMIN;
+    c=1+aa/c; if(Math.abs(c)<FPMIN) c=FPMIN;
+    d=1/d; const del=d*c; h*=del;
+    if(Math.abs(del-1)<EPS) break;
+  }
+  return h;
+}
+/* regularised incomplete beta I_x(a,b) */
+function betainc(a,b,x){
+  if(x<=0) return 0; if(x>=1) return 1;
+  const bt=Math.exp(lgamma(a+b)-lgamma(a)-lgamma(b)+a*Math.log(x)+b*Math.log(1-x));
+  return x < (a+1)/(a+b+2) ? bt*betacf(a,b,x)/a : 1-bt*betacf(b,a,1-x)/b;
+}
+const R_MIN=0.25, R_MAX=5e4;
+function rOf(mu,c){
+  if(!c.c) return null;
+  return Math.min(Math.max(Math.pow(Math.max(mu,1e-6),2-c.p)/c.c,R_MIN),R_MAX);
+}
+function sdOf(mu,c){
+  const r=rOf(mu,c);
+  return Math.sqrt(r===null ? mu : mu+mu*mu/r);
+}
+/* P(X > k) for the negative binomial, via the incomplete beta */
+function nbSf(k,r,q){ return betainc(k+1,r,1-q); }
+function poisSf(k,mu){
+  let s=0, t=Math.exp(-mu);
+  for(let i=0;i<=k;i++){ s+=t; t*=mu/(i+1); }
+  return Math.max(1-s,0);
+}
+function shape(p,c){
+  const t=c.shape; if(!t) return p;
+  const n=t.length-1, x=Math.min(Math.max(p,0),1)*n, i=Math.floor(x);
+  if(i>=n) return t[n];
+  return t[i]+(t[i+1]-t[i])*(x-i);
+}
+function pOverRaw(mu,c,line){
+  const k=Math.floor(line), r=rOf(mu,c);
+  return r===null ? poisSf(k,mu) : nbSf(k,r,r/(r+mu));
+}
+function pOver(mu,c,line){ return shape(pOverRaw(mu,c,line),c); }
+function pPush(mu,c,line){
+  if(line%1!==0) return 0;
+  const r=rOf(mu,c), k=line;
+  let pmf;
+  if(r===null){
+    let t=Math.exp(-mu); for(let i=0;i<k;i++) t*=mu/(i+1); pmf=t;
+  }else{
+    const q=r/(r+mu);
+    pmf=Math.exp(lgamma(k+r)-lgamma(r)-lgamma(k+1)+r*Math.log(q)+k*Math.log(1-q));
+  }
+  const o=pOver(mu,c,line), raw=pOverRaw(mu,c,line);
+  return Math.min(pmf*(1-o)/Math.max(1-raw,1e-9),1-o);
+}
+function quant(mu,c,p){
+  const r=rOf(mu,c);
+  let lo=0, hi=Math.max(5,Math.ceil(mu+8*sdOf(mu,c)));
+  while(lo<hi){
+    const mid=(lo+hi)>>1;
+    const cdf=1-(r===null?poisSf(mid,mu):nbSf(mid,r,r/(r+mu)));
+    if(cdf>=p) hi=mid; else lo=mid+1;
+  }
+  return lo;
+}
+function fairLine(mu,c){
+  const k=quant(mu,c,0.5); let best=null,bl=null;
+  for(let o=-4;o<=4;o++){
+    const L=k+o+0.5; if(L<=0) continue;
+    const d=Math.abs(pOver(mu,c,L)-0.5);
+    if(best===null||d<best){best=d;bl=L;}
+  }
+  return bl;
+}
+/* ---------- odds ---------- */
+function a2p(o){ o=+o; return o>0 ? 100/(o+100) : -o/(-o+100); }
+function p2a(p){
+  p=Math.min(Math.max(p,1e-6),1-1e-6);
+  return p>=0.5 ? -Math.round(100*p/(1-p)) : Math.round(100*(1-p)/p);
+}
+function fmtA(o){ return (o>0?"+":"")+o; }
+function devig(oo,uo){
+  const a=a2p(oo), b=a2p(uo);
+  let lo=0.01, hi=10;
+  for(let i=0;i<80;i++){
+    const k=(lo+hi)/2;
+    if(Math.pow(a,1/k)+Math.pow(b,1/k)>1) hi=k; else lo=k;
+  }
+  const k=(lo+hi)/2;
+  return [Math.pow(a,1/k),Math.pow(b,1/k)];
+}
+function ev(p,o){ o=+o; const b=o>0?o/100:100/-o; return p*b-(1-p); }
+function kelly(p,o){ o=+o; const b=o>0?o/100:100/-o; return Math.max((p*b-(1-p))/b,0); }
+
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;
+  if(h!==undefined)e.innerHTML=h;return e;};
+const P=Object.fromEntries(D.players.map(p=>[p.id,p]));
+// Game logs ship as bare rows under a shared header; rebuild them once.
+(function(){
+  const cols=D.recent_cols;
+  if(!cols) return;
+  for(const id in D.recent){
+    D.recent[id]=D.recent[id].map(row=>{
+      const o={}; cols.forEach((c,i)=>o[c]=row[i]); return o;
+    });
+  }
+})();
+const SK=D.stats.map(s=>s.key);
+const LBL=Object.fromEntries(D.stats.map(s=>[s.key,s.label]));
+const pct=x=>(100*x).toFixed(1)+"%";
+const sgn=x=>(x>=0?"+":"")+(100*x).toFixed(1)+"%";
+const cls=x=>x>0.0001?"good":(x<-0.0001?"bad":"dim");
+// sgn is a percentage; a margin is a count of points, rebounds or threes.
+const sgn2=x=>(x>=0?"+":"")+x.toFixed(1);
+const dash=`<span class="dim2">&mdash;</span>`;
+function thinPill(p){
+  return p.thin?` <span class="pill q" title="Fewer than fifteen games of his own record behind this projection">thin record</span>`:"";
+}
+function statusPill(p){
+  if(!p.status) return "";
+  const s=p.status.toLowerCase();
+  const k=s.includes("out")?"out":(s.includes("quest")||s.includes("doubt")?"q":"");
+  return ` <span class="pill ${k}">${p.status}</span>`;
+}
+function matchup(p){ return `${p.team} ${p.home?"vs":"@"} ${p.opp}`; }
+function comboOf(key){
+  const s=D.stats.find(x=>x.key===key);
+  return s&&s.combo?s.combo:[key];
+}
+function actual(g,key){ return comboOf(key).reduce((a,k)=>a+(g[k]||0),0); }
+/* A long note stays folded until asked for. */
+function fold(key){
+  const box=$("#f-"+key); if(!box) return;
+  box.classList.toggle("hide");
+}
+function foldBtn(id,label,open){
+  const b=el("button","fold"+(open?" open":""),
+    `<span class="car">&rsaquo;</span>${label}`);
+  b.onclick=()=>{const t=$("#"+id);t.classList.toggle("hide");
+    b.classList.toggle("open",!t.classList.contains("hide"));};
+  return b;
+}
+
+/* ---------- opposing defence ---------- */
+const DEF=D.defense;
+const NTEAMS=DEF.n||30;
+function defOf(team,win){ const t=DEF.teams[team]; return t?(t[win]||null):null; }
+/* An over bettor wants a soft defence, so a high rank is the good news. */
+function rankCls(rank){ return rank>=NTEAMS-7?"good":(rank<=8?"bad":"dim"); }
+function ord(n){
+  const s=["th","st","nd","rd"], v=n%100;
+  return n+(s[(v-20)%10]||s[v]||s[0]);
+}
+const POSLBL=Object.fromEntries((DEF.positions||[]).map(p=>[p.key,p.label]));
+/* What this defence concedes to one position, rather than to everyone. */
+function allowedFor(team,stat,win,pos){
+  const d=defOf(team,win);
+  if(!d) return null;
+  if(pos&&d.by_pos&&d.by_pos[pos]&&d.by_pos[pos][stat]) return d.by_pos[pos][stat];
+  return d.allowed[stat]||null;
+}
+function rankCell(team,stat,win,pos){
+  const a=allowedFor(team,stat,win,pos);
+  if(!a) return dash;
+  const t=pos?`vs ${POSLBL[pos]||pos}`:"all positions";
+  return `<span class="${rankCls(a[1])}" title="${ord(a[1])} of ${NTEAMS}, ${t}">${ord(a[1])}</span>`;
+}
+
+/* ---------- finding a player by what you type ---------- */
+function initialsOf(name){
+  return name.toLowerCase().split(/[\s.'-]+/).filter(Boolean)
+    .map(w=>w[0]).join("");
+}
+/* Everyone a query could mean, best interpretation first. */
+function matchPlayers(q,limit=8){
+  q=(q||"").trim().toLowerCase();
+  const all=D.players;
+  if(!q) return all.slice().sort((a,b)=>b.mu.pra-a.mu.pra).slice(0,limit);
+  const score=p=>{
+    const n=p.name.toLowerCase(), last=n.split(" ").pop();
+    if(n===q) return 0;
+    if(last.startsWith(q)) return 1;
+    if(n.startsWith(q)) return 2;
+    if(initialsOf(p.name)===q) return 3;
+    if(initialsOf(p.name).startsWith(q)&&q.length>1) return 4;
+    if(n.includes(q)) return 5;
+    if(q.split(/\s+/).every(w=>n.includes(w))) return 6;
+    return 99;
+  };
+  return all.map(p=>[score(p),p]).filter(x=>x[0]<99)
+    .sort((a,b)=>a[0]-b[0]||b[1].mu.pra-a[1].mu.pra)
+    .slice(0,limit).map(x=>x[1]);
+}
+function findPlayer(q){ const m=matchPlayers(q,1); return m.length?m[0]:null; }
+
+let curPlayer=null, menuIdx=-1, menuList=[];
+function openMenu(q){
+  menuList=matchPlayers(q===undefined?$("#pq").value:q, 9);
+  const m=$("#pmenu"); m.innerHTML="";
+  if(!menuList.length){
+    m.append(el("div","empty","No one on tonight's slate"));
+  }else{
+    menuList.forEach((p,i)=>{
+      const d=el("div",i===menuIdx?"on":"",
+        `<span>${p.name}</span><span class="dim">${matchup(p)}</span>`);
+      d.onmousedown=e=>{e.preventDefault();pick(p);};
+      d.onmouseenter=()=>{menuIdx=i;paintMenu();};
+      m.append(d);
+    });
+  }
+  m.classList.remove("hide");
+}
+function paintMenu(){
+  [...$("#pmenu").children].forEach((d,i)=>d.classList.toggle("on",i===menuIdx));
+}
+function closeMenu(){ $("#pmenu").classList.add("hide"); menuIdx=-1; }
+function pick(p){
+  curPlayer=p; $("#pq").value=p.name; closeMenu(); drawPlayer();
+}
+function selectPlayerById(id){
+  const p=P[id]; if(!p) return;
+  showTab("player"); pick(p);
+}
+
+/* ---------- trends ---------- */
+/* A record here is tonight's line carried backwards over a player's last
+   N games. It describes form, not edge, and the note above the table
+   says why. Everything is computed from the same logs the Player tab
+   draws, so the two can never disagree. */
+const CURSEASON=D.meta.seasons[D.meta.seasons.length-1]||{};
+const SEASON_FROM=CURSEASON.from||"";
+let tSort="hit", tDir=-1;
+
+function tLine(p,stat){
+  const q=(p.book&&p.book[stat])?p.book[stat]:null;
+  return q?{line:q.line,src:"book",nb:q.n}:{line:p.line[stat],src:"model",nb:0};
+}
+function tGames(p,N,split,seasonOnly){
+  let g=D.recent[p.id]||[];
+  if(seasonOnly) g=g.filter(x=>x.d>=SEASON_FROM);
+  if(split==="home") g=g.filter(x=>x.h);
+  else if(split==="away") g=g.filter(x=>!x.h);
+  return g.slice(-N);
+}
+function tally(games,stat,line){
+  let o=0,u=0,psh=0;
+  games.forEach(x=>{const v=actual(x,stat);
+    if(v===line)psh++; else if(v>line)o++; else u++;});
+  return {o,u,psh,n:games.length,dec:o+u};
+}
+/* The current run, newest first. A game landing exactly on the number is
+   neither side, so it ends the run rather than extending it. */
+function runOf(games,stat,line){
+  let k=0,side=null;
+  for(let i=games.length-1;i>=0;i--){
+    const v=actual(games[i],stat);
+    if(v===line)break;
+    const sd=v>line?"o":"u";
+    if(side===null)side=sd; else if(sd!==side)break;
+    k++;
+  }
+  return {k,side};
+}
+/* Two-sided, against a line that should be a coin. Ten games give eight
+   or more the same way about once in nine tries, so this is the bar an
+   eye-catching record has to clear before it is worth a second look. */
+function beyondNoise(t){
+  return t.dec>=5 && Math.abs(t.o-t.dec/2) >= 1.96*Math.sqrt(t.dec)/2;
+}
+function recCell(t){
+  if(!t.dec) return dash;
+  const cl=beyondNoise(t)?(t.o*2>t.dec?"good":"bad"):"dim";
+  return `<span class="rec ${cl}"><b>${t.o}</b>/${t.dec}</span>`
+    +(t.psh?`<span class="dim2" title="${t.psh} landed on the number"> +${t.psh}p</span>`:"");
+}
+function stripOf(games,stat,line){
+  return `<span class="strip">`+games.map(x=>{
+    const v=actual(x,stat), c=v===line?"p":(v>line?"o":"u");
+    return `<i class="${c}" title="${x.d.slice(5)} ${x.h?"vs":"@"} ${x.o}`
+      +` &middot; ${v} in ${x.min} min"></i>`;
+  }).join("")+`</span>`;
+}
+function trendRows(){
+  const stat=$("#tstat").value, N=+$("#tlast").value||10,
+        split=$("#tsplit").value, so=$("#tseason").checked,
+        mm=+$("#tminmin").value||0, gid=$("#tgame").value;
+  return D.players.filter(p=>!p.out&&p.min>=mm&&(!gid||p.gid==gid)).map(p=>{
+    const {line,src,nb}=tLine(p,stat);
+    const g=tGames(p,N,split,so);
+    const all=tGames(p,N,"all",so);
+    const t=tally(g,stat,line);
+    const home=tally(all.filter(x=>x.h),stat,line);
+    const away=tally(all.filter(x=>!x.h),stat,line);
+    // Meetings come from the whole log, not the window: two clubs meet
+    // rarely enough that a ten-game window would almost always be empty.
+    const vs=tally((D.recent[p.id]||[]).filter(x=>x.o===p.opp),stat,line);
+    const run=runOf(g,stat,line);
+    const vals=g.map(x=>actual(x,stat));
+    const mean=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
+    const mins=g.length?g.reduce((a,x)=>a+x.min,0)/g.length:null;
+    return {p,stat,line,src,nb,g,t,home,away,vs,run,mean,mins,
+      hit:t.dec?t.o/t.dec:null, margin:mean===null?null:mean-line,
+      sig:beyondNoise(t)};
+  });
+}
+const TCOLS=[
+  ["name","Player","l",r=>`<span class="name" data-id="${r.p.id}">${r.p.name}</span>${thinPill(r.p)}`],
+  ["team","Match","l",r=>`<span class="dim">${matchup(r.p)}</span>`],
+  ["line","Line","",r=>`${r.line.toFixed(1)}<span class="src ${r.src}" title="${
+    r.src==="book"?r.nb+" book"+(r.nb===1?"":"s")+" on this number":
+    "no book quoting it -- the model's own even-money line"}">${r.src}</span>`],
+  ["hit","Record","",r=>recCell(r.t)],
+  ["strip","Last","l",r=>r.g.length?stripOf(r.g,r.stat,r.line):dash],
+  ["run","Run","",r=>r.run.k?`<span class="${r.run.side==="o"?"good":"bad"}">${
+    r.run.side==="o"?"O":"U"}${r.run.k}</span>`:dash],
+  ["home","Home","",r=>recCell(r.home)],
+  ["away","Away","",r=>recCell(r.away)],
+  ["vs","vs Opp","",r=>r.vs.dec?recCell(r.vs):dash],
+  ["margin","Margin","",r=>r.margin===null?dash
+    :`<span class="${cls(r.margin)}">${sgn2(r.margin)}</span>`],
+  // Minutes in the window against minutes tonight: a record built on a
+  // different role is the commonest reason a hit rate misleads.
+  ["mins","Min","",r=>r.mins===null?dash
+    :`<span class="dim">${r.mins.toFixed(0)}</span>
+      <span class="dim2">&rarr;</span> ${r.p.min.toFixed(0)}`],
+  ["mu","Proj","",r=>`<b>${r.p.mu[r.stat].toFixed(1)}</b>`],
+];
+function drawTrends(){
+  let rows=trendRows();
+  if($("#tsig").checked) rows=rows.filter(r=>r.sig);
+  // Ranked on a smoothed rate, shown raw: one game at 1/1 is not a
+  // better record than nine out of ten, and sorting on the raw fraction
+  // puts every single-game player on top of the table.
+  const rank=t=>t.dec?(t.o+1)/(t.dec+2):-9;
+  const get=r=>({name:r.p.name,team:r.p.team,line:r.line,
+    hit:rank(r.t), strip:r.t.dec,
+    run:(r.run.side==="o"?1:-1)*r.run.k,
+    home:rank(r.home), away:rank(r.away), vs:rank(r.vs),
+    margin:r.margin===null?-999:r.margin,
+    mins:r.mins===null?-9:r.mins, mu:r.p.mu[r.stat]}[tSort]);
+  rows.sort((a,b)=>{const x=get(a),y=get(b);
+    return (typeof x==="string"?x.localeCompare(y):x-y)*tDir;});
+  const t=$("#tt"); t.innerHTML="";
+  const head=el("thead"), tr=el("tr");
+  TCOLS.forEach(([k,l,c])=>{
+    const th=el("th",c,l+(tSort===k?(tDir>0?" \u2191":" \u2193"):""));
+    th.onclick=()=>{if(tSort===k)tDir*=-1;else{tSort=k;tDir=-1;}drawTrends();};
+    tr.append(th);
+  });
+  head.append(tr); t.append(head);
+  const tb=el("tbody");
+  rows.forEach(r=>{
+    const row=el("tr");
+    TCOLS.forEach(([k,l,c,f])=>row.append(el("td",(c||"")+" num",f(r))));
+    tb.append(row);
+  });
+  t.append(tb);
+  t.querySelectorAll(".name").forEach(n=>{
+    n.onclick=()=>selectPlayerById(+n.dataset.id);
+  });
+}
+
+/* ---------- board ---------- */
+const lines={};            // `${id}|${stat}` -> typed line
+let sortBy="mu", sortDir=-1;
+function boardRows(){
+  const stat=$("#stat").value, gid=$("#game").value, mm=+$("#minmin").value||0;
+  const oo=+$("#oo").value, uo=+$("#uo").value, c=D.calib[stat];
+  const [nvO,nvU]=devig(oo,uo);
+  const showOut=$("#showout").checked;
+  return D.players.filter(p=>(p.out?showOut&&p.base_min>=mm:p.min>=mm)
+      && (!gid||p.gid==gid)).map(p=>{
+    const mu=p.mu[stat], key=p.id+"|"+stat;
+    const typed=key in lines;
+    // A real quote supplies its own line and prices; a typed line
+    // overrides it and falls back to the odds in the toolbar. Edge is
+    // only meaningful against a number somebody is actually offering.
+    const q=(!typed&&p.book&&p.book[stat])?p.book[stat]:null;
+    const line=typed?lines[key]:(q?q.line:p.line[stat]);
+    const bo=q?q.over:oo, bu=q?q.under:uo;
+    const po=pOver(mu,c,line), pu=1-po-pPush(mu,c,line);
+    const eo=ev(po,bo), eu=ev(pu,bu);
+    const over=eo>=eu;
+    // Measured against the consensus of the books quoting this number
+    // where there is one, and against this book's own devig otherwise.
+    let mo,mu_;
+    if(q&&q.cons!=null){ mo=q.cons; mu_=1-q.cons; }
+    else { const dv=devig(bo,bu); mo=dv[0]; mu_=dv[1]; }
+    const priced=(typed||q)&&!p.out;
+    return {p,stat,mu,line,po,pu,sd:sdOf(mu,c),typed:priced,q,bo,bu,
+      mkt:priced?mo:null,
+      side:priced?(over?"over":"under"):null,
+      edge:priced?(over?po-mo:pu-mu_):null,
+      ev:priced?Math.max(eo,eu):null,
+      kelly:priced?(over?kelly(po,bo):kelly(pu,bu)):0};
+  });
+}
+/* [key, label, extra?, align, render] -- extra columns are off by default. */
+const BCOLS=[
+  ["name","Player",0,"l",r=>`<span class="name" data-id="${r.p.id}">${r.p.name}</span>${statusPill(r.p)}${thinPill(r.p)}`],
+  ["team","Match",0,"l",r=>`<span class="dim">${matchup(r.p)}</span>`],
+  ["pos","Pos",0,"",r=>`<span class="dim">${r.p.pos||"?"}</span>`],
+  // A ruled-out player shows what he normally plays, not what the budget
+  // would have given him, and nothing downstream of it is a price.
+  ["min","Min",0,"",r=>r.p.out?`<span title="his own recent minutes">${r.p.base_min.toFixed(1)}</span>`
+    :r.p.min.toFixed(1)],
+  ["mu","Proj",0,"",r=>r.p.out?dash:`<b>${r.mu.toFixed(2)}</b>`],
+  ["sd","SD",1,"",r=>r.p.out?dash:`<span class="dim">${r.sd.toFixed(2)}</span>`],
+  ["model","Model",1,"",r=>r.p.out?dash:`<span class="dim">${r.p.line[r.stat].toFixed(1)}</span>`],
+  ["line","Line",0,"",r=>r.p.out?dash
+    :`<input type="number" step="0.5" class="ln" data-k="${r.p.id}|${r.stat}" value="${r.line}"${r.q?' title="the market\'s line"':''}>`],
+  ["po","Over",0,"",r=>r.p.out?dash:pct(r.po)],
+  // What the market says, beside what the model says.
+  ["mkt","Mkt",0,"",r=>r.mkt===null?dash
+    :`<span class="dim" title="${r.q?(r.q.cons!=null?r.q.n+" books, no-vig consensus":"one book, devigged"):"your toolbar odds, devigged"}">${pct(r.mkt)}</span>`],
+  ["fo","Fair O",1,"",r=>r.p.out?dash:`<span class="dim">${fmtA(p2a(r.po))}</span>`],
+  ["fu","Fair U",1,"",r=>r.p.out?dash:`<span class="dim">${fmtA(p2a(r.pu))}</span>`],
+  ["side","Side",1,"",r=>r.side||dash],
+  ["edge","Edge",0,"",r=>r.edge===null?dash
+    :`<span class="${cls(r.edge)}">${sgn(r.edge)}</span>`],
+  ["ev","EV",0,"",r=>r.ev===null?dash
+    :`<span class="${cls(r.ev)}">${sgn(r.ev)}</span>`],
+  ["kelly","Kelly",1,"",r=>r.kelly>0?pct(r.kelly):dash],
+  ["price","Price",1,"",r=>r.q?`${fmtA(r.side==="under"?r.bu:r.bo)}`:dash],
+  ["book","Book",1,"l",r=>r.q
+    ?`<span class="dim">${r.side==="under"?r.q.under_book:r.q.over_book}`+
+     `${r.q.n>1?` <span class="dim2">+${r.q.n-1}</span>`:""}</span>`:dash],
+  ["play","Avail",1,"",r=>r.p.out?`<span class="bad">out</span>`
+    :(r.p.play<1
+      ?`<span class="${r.p.play<0.7?"warn":"dim"}">${(100*r.p.play).toFixed(0)}%</span>`
+      :`<span class="dim2">100%</span>`)],
+  ["pace","Pace",1,"",r=>`<span class="dim">${sgn(r.p.pace-1)}</span>`],
+  // Ranked against this player's own position: a team can be middling
+  // overall and the softest in the league against centres.
+  ["oppd","Opp D",0,"",r=>rankCell(r.p.opp,r.stat,defWindow(),r.p.pos)],
+];
+function defWindow(){ return $("#pwin").value||(DEF.windows[0]||{}).key||"last10"; }
+function drawBoard(){
+  let rows=boardRows();
+  if($("#onlybook").checked) rows=rows.filter(r=>r.q);
+  if($("#onlyedge").checked) rows=rows.filter(r=>r.ev!==null&&r.ev>0);
+  const showAll=$("#more").checked;
+  const cols=BCOLS.filter(c=>showAll||!c[2]);
+  const get=r=>({name:r.p.name,team:r.p.team,min:r.p.min,mu:r.mu,sd:r.sd,
+    model:r.p.line[r.stat],line:r.line,po:r.po,fo:r.po,fu:r.pu,
+    side:r.side||"",edge:r.edge===null?-9:r.edge,ev:r.ev===null?-9:r.ev,
+    kelly:r.kelly,play:r.p.play,pace:r.p.pace,
+    pos:r.p.pos||"", mkt:r.mkt===null?-9:r.mkt,
+    price:r.q?(r.side==="under"?r.bu:r.bo):-9999,
+    book:r.q?(r.side==="under"?r.q.under_book:r.q.over_book):"",
+    oppd:(allowedFor(r.p.opp,r.stat,defWindow(),r.p.pos)||[0,0])[1]}[sortBy]);
+  rows.sort((a,b)=>{const x=get(a),y=get(b);
+    return (typeof x==="string"?x.localeCompare(y):x-y)*sortDir;});
+  const t=$("#bt"); t.innerHTML="";
+  const head=el("thead"), tr=el("tr");
+  cols.forEach(([k,l,x,c])=>{
+    const th=el("th",c,l+(sortBy===k?(sortDir>0?" ↑":" ↓"):""));
+    th.onclick=()=>{if(sortBy===k)sortDir*=-1;else{sortBy=k;sortDir=-1;}drawBoard();};
+    tr.append(th);
+  });
+  head.append(tr); t.append(head);
+  const tb=el("tbody");
+  rows.forEach(r=>{
+    const row=el("tr");
+    if(r.p.out) row.className="outrow";
+    cols.forEach(([k,l,x,c,f])=>row.append(el("td",(c||"")+" num",f(r))));
+    tb.append(row);
+  });
+  t.append(tb);
+  t.querySelectorAll("input.ln").forEach(i=>{
+    i.onchange=()=>{lines[i.dataset.k]=+i.value;drawBoard();};
+  });
+  t.querySelectorAll(".name").forEach(n=>{
+    n.onclick=()=>selectPlayerById(+n.dataset.id);
+  });
+}
+
+/* ---------- line sheet ---------- */
+const SCOLS=[
+  ["Player",0,"l",r=>`<span class="name" data-id="${r.p.id}">${r.p.name}</span>${statusPill(r.p)}`],
+  ["Match",0,"l",r=>`<span class="dim">${matchup(r.p)}</span>`],
+  ["Stat",0,"l",r=>LBL[r.stat]],
+  ["Line",0,"",r=>r.line.toFixed(1)],
+  ["Proj",0,"",r=>`<b>${r.mu.toFixed(2)}</b>`],
+  ["Over",0,"",r=>pct(r.po)],
+  ["Fair O",0,"",r=>fmtA(p2a(r.po))],
+  ["Fair U",1,"",r=>fmtA(p2a(r.pu))],
+  ["Book",0,"",r=>r.oo?`${fmtA(r.oo)} / ${fmtA(r.uo)}`:dash],
+  ["Hold",1,"",r=>r.oo?`<span class="dim">${pct(a2p(r.oo)+a2p(r.uo)-1)}</span>`:""],
+  ["Side",0,"",r=>r.side],
+  ["Edge",0,"",r=>r.edge===null?dash:`<span class="${cls(r.edge)}">${sgn(r.edge)}</span>`],
+  ["EV",0,"",r=>r.ev===null?dash:`<span class="${cls(r.ev)}">${sgn(r.ev)}</span>`],
+  ["Kelly",1,"",r=>r.kelly?pct(r.kelly):dash],
+  ["Opp D",0,"",r=>rankCell(r.p.opp,r.stat,defWindow(),r.p.pos)],
+  ["L10",0,"",r=>r.hit===null?"":`<span class="dim">${r.hit}</span>`],
+];
+function priceSheet(){
+  const txt=$("#paste").value.trim(), out=[], bad=[];
+  if(!txt){$("#st").innerHTML="";$("#pastemsg").textContent="";return;}
+  txt.split(/\n+/).forEach(raw=>{
+    const ln=raw.trim(); if(!ln) return;
+    const f=ln.split(/[,;\t]+|\s{2,}/).map(s=>s.trim()).filter(Boolean);
+    let parts=f.length>=3?f:ln.split(/\s+/);
+    if(parts.length<3){bad.push(ln);return;}
+    const odds=[], rest=[];
+    parts.forEach(x=>{ if(/^[+-]\d{2,4}$/.test(x)) odds.push(+x); else rest.push(x); });
+    const line=parseFloat(rest.pop());
+    const stat=(rest.pop()||"").toLowerCase();
+    const p=findPlayer(rest.join(" "));
+    if(!p||!SK.includes(stat)||!isFinite(line)){bad.push(ln);return;}
+    const c=D.calib[stat], mu=p.mu[stat];
+    const po=pOver(mu,c,line), pu=1-po-pPush(mu,c,line);
+    const r={p,stat,line,mu,po,pu,oo:odds[0]||null,uo:odds[1]||null,
+      side:p.out?"ruled out":(po>0.5?"over":"under"),
+      edge:null,ev:null,kelly:0,hit:null};
+    if(r.oo&&r.uo&&!p.out){
+      const [nO,nU]=devig(r.oo,r.uo);
+      const eo=ev(po,r.oo), eu=ev(pu,r.uo), over=eo>=eu;
+      r.side=over?"over":"under"; r.edge=over?po-nO:pu-nU;
+      r.ev=Math.max(eo,eu); r.kelly=over?kelly(po,r.oo):kelly(pu,r.uo);
+    }
+    const g=D.recent[p.id]||[];
+    if(g.length){
+      const n=Math.min(10,g.length), last=g.slice(-n);
+      r.hit=`${last.filter(x=>actual(x,stat)>line).length}/${n}`;
+    }
+    out.push(r);
+  });
+  out.sort((a,b)=>(b.ev===null?-9:b.ev)-(a.ev===null?-9:a.ev));
+  const cols=SCOLS.filter(c=>$("#more").checked||!c[1]);
+  const t=$("#st"); t.innerHTML="";
+  const head=el("thead"), tr=el("tr");
+  cols.forEach(([l,x,c])=>tr.append(el("th",c,l)));
+  head.append(tr); t.append(head);
+  const tb=el("tbody");
+  out.forEach(r=>{
+    const row=el("tr");
+    cols.forEach(([l,x,c,f])=>row.append(el("td",(c||"")+" num",f(r))));
+    tb.append(row);
+  });
+  t.append(tb);
+  t.querySelectorAll(".name").forEach(n=>{
+    n.onclick=()=>selectPlayerById(+n.dataset.id);
+  });
+  const pos=out.filter(r=>r.ev>0).length;
+  $("#pastemsg").innerHTML=`${out.length} priced, ${pos} with positive EV`+
+    (bad.length?` &middot; <span class="warn">${bad.length} not understood</span>`:"");
+}
+
+/* ---------- the over/under chart ----------
+   One column per game, oldest to newest, grown from a zero baseline so the
+   heights can be compared; the line is drawn across them and each column
+   takes the colour of the side it landed on. The counts sit above it,
+   because "seven of ten" is the thing being asked and a reader should not
+   have to total the bars to get it. */
+const PLOT_H=140;
+function overUnderChart(games,stat,line){
+  const vals=games.map(g=>actual(g,stat));
+  const over=vals.filter(v=>v>line).length;
+  const under=vals.filter(v=>v<line).length;
+  const push=vals.length-over-under;
+  const top=Math.max(Math.max(...vals,line)*1.12,line*1.12,1);
+  const wrap=el("div","chart");
+  wrap.append(el("div","chart-head",`
+    <div class="hero"><b class="o">${over}</b> over<span class="sep">/</span>
+      <b class="u">${under}</b> under${push?`<span class="sep">/</span>
+      <b>${push}</b> on it`:""}
+      <small>of the last ${vals.length} at ${line.toFixed(1)}</small></div>
+    <div class="legend">
+      <span><i class="sw o"></i>Cleared the line</span>
+      <span><i class="sw u"></i>Did not</span>
+    </div>`));
+  const plot=el("div","plot");
+  const cols=el("div","cols");
+  games.forEach((g,i)=>{
+    const v=vals[i], hit=v>line;
+    const c=el("div","col");
+    const bar=el("i",hit?"o":"u");
+    bar.style.height=Math.max(2,Math.round(PLOT_H*Math.min(v/top,1)))+"px";
+    c.append(bar);
+    c.addEventListener("mouseenter",()=>showTip(plot,c,g,stat,v,line));
+    c.addEventListener("mouseleave",hideTip);
+    cols.append(c);
+  });
+  plot.append(cols, el("div","base"));
+  const th=el("div","thresh",`<span>${line.toFixed(1)}</span>`);
+  th.style.bottom=Math.round(PLOT_H*Math.min(line/top,1))+"px";
+  plot.append(th);
+  wrap.append(plot);
+  // Past a dozen columns the date no longer fits under the opponent.
+  const tight=games.length>12;
+  const xr=el("div","xrow"+(tight?" tight":""));
+  games.forEach(g=>xr.append(el("div","xc",
+    `${g.h?"":"@"}${g.o}` +
+    (tight?"":`<br><span class="dim2">${g.d.slice(5)}</span>`))));
+  wrap.append(xr);
+  return wrap;
+}
+function showTip(plot,col,g,stat,v,line){
+  hideTip();
+  const t=el("div","tip",
+    `${g.h?"vs":"@"} ${g.o} &middot; ${g.d.slice(5)}<br>
+     <b>${v}</b> ${LBL[stat].toLowerCase()} in <b>${g.min.toFixed(0)}</b> min
+     <span class="${v>line?"":"dim"}" style="color:${v>line?
+       "var(--over)":"var(--under)"}">${v>line?"over":(v<line?"under":"on it")}</span>`);
+  t.id="tip";
+  plot.append(t);
+  // Keep the tooltip inside the plot rather than letting it run off an edge.
+  const pw=plot.clientWidth, cw=col.offsetLeft+col.offsetWidth/2;
+  t.style.left="0px"; t.style.bottom=(PLOT_H+8)+"px";
+  const w=t.offsetWidth;
+  t.style.left=Math.max(0,Math.min(cw-w/2,pw-w))+"px";
+}
+function hideTip(){ const t=$("#tip"); if(t)t.remove(); }
+
+/* ---------- player card ---------- */
+function drawPlayer(){
+  const p=curPlayer||D.players.slice().sort((a,b)=>b.mu.pra-a.mu.pra)[0];
+  if(!p) return;
+  curPlayer=p;
+  if($("#pq").value!==p.name) $("#pq").value=p.name;
+  const stat=$("#pstat").value, c=D.calib[stat];
+  const typed=parseFloat($("#pline").value);
+  const line=isFinite(typed)?typed:p.line[stat];
+  const mu=p.mu[stat], po=pOver(mu,c,line), push=pPush(mu,c,line);
+  const win=defWindow(), N=+$("#plast").value||10;
+  const g=D.recent[p.id]||[];
+  const box=el("div");
+  if(p.out){
+    box.append(el("div","banner",
+      `<b>Ruled out</b>${p.status?` &mdash; ${p.status}`:""}${p.injury?
+        `, ${p.injury}`:""}. Nothing here is a price: the numbers below are
+       his record, and the minutes are the ones his team has to replace.`));
+  }
+
+  /* who he is, and what this market prices at */
+  const head=el("div","panel",`
+    <h2>${p.name} <span class="dim">${matchup(p)}${p.pos?" &middot; "+
+      (POSLBL[p.pos]||p.pos).replace(/s$/,""):""}</span>${statusPill(p)}${thinPill(p)}</h2>
+    <div class="grid2">
+      <div class="kv">
+        <div>Minutes</div><div class="num">${p.out?`<span class="bad">none
+          &mdash; ruled out</span>`:`${p.min.toFixed(1)}
+          <span class="dim">(recent ${p.base_min.toFixed(1)}
+          &times;${p.min_scale.toFixed(2)})</span>`}</div>
+        <div>Availability</div><div class="num">${p.out?`<span class="bad">out</span>`
+          :`${(100*p.play).toFixed(0)}%`}
+          ${p.injury?`<span class="dim">&mdash; ${p.injury}</span>`:""}</div>
+        <div>Pace</div><div class="num">${sgn(p.pace-1)}
+          <span class="dim">vs league</span></div>
+        <div>Record</div><div class="num">${p.seen.toFixed(0)} games
+          ${p.thin?`<span class="warn">&mdash; thin, the rate leans on the
+          league mean</span>`:""}</div>
+      </div>
+      <div class="kv">`+(p.out?`
+        <div>Normally plays</div><div class="num">${p.base_min.toFixed(1)}
+          <span class="dim">minutes &mdash; his team's to redistribute</span></div>
+        <div>Season average</div><div class="num">${LBL[stat]}
+          ${(()=>{const g=D.recent[p.id]||[];return g.length?
+            (g.reduce((a,x)=>a+actual(x,stat),0)/g.length).toFixed(2):"&mdash;";})()}
+          <span class="dim">over his last ${(D.recent[p.id]||[]).length}</span></div>
+        <div>Priced</div><div class="num bad">no &mdash; he is out</div>`:`
+        <div>${LBL[stat]}</div><div class="num"><b>${mu.toFixed(2)}</b>
+          &plusmn; ${sdOf(mu,c).toFixed(2)}
+          <span class="dim">&middot; 10&ndash;90% ${quant(mu,c,0.1)}&ndash;${quant(mu,c,0.9)}</span></div>
+        <div>At ${line.toFixed(1)}</div><div class="num">over ${pct(po)}
+          <span class="dim">/</span> under ${pct(1-po-push)}
+          ${push>0.0005?`<span class="dim">&middot; push ${pct(push)}</span>`:""}</div>
+        <div>Fair price</div><div class="num">O ${fmtA(p2a(po))}
+          <span class="dim">/</span> U ${fmtA(p2a(1-po-push))}
+          <span class="dim">&middot; even money at ${fairLine(mu,c).toFixed(1)}</span></div>`)+`
+      </div>
+    </div>`);
+  let mh=p.out?"":`<table><thead><tr><th class="l">Market</th><th>Proj</th><th>SD</th>
+    <th>Even-money line</th><th>Over there</th><th>Fair O</th>
+    <th>Opp D</th></tr></thead><tbody>`;
+  if(!p.out) SK.forEach(k=>{
+    const cc=D.calib[k], m=p.mu[k], L=fairLine(m,cc), q=pOver(m,cc,L);
+    mh+=`<tr${k===stat?' style="background:var(--panel2)"':''}>
+      <td class="l">${LBL[k]}</td><td class="num">${m.toFixed(2)}</td>
+      <td class="num dim">${sdOf(m,cc).toFixed(2)}</td>
+      <td class="num">${L.toFixed(1)}</td><td class="num">${pct(q)}</td>
+      <td class="num dim">${fmtA(p2a(q))}</td>
+      <td class="num">${rankCell(p.opp,k,win,p.pos)}</td></tr>`;
+  });
+  if(!p.out){
+    mh+="</tbody></table>";
+    const mw=el("div","hide"); mw.id="f-markets"; mw.innerHTML=mh;
+    head.append(foldBtn("f-markets","Every market",false), mw);
+  }
+  box.append(head);
+
+  /* last N games, with the defence each one came against */
+  const gl=g.slice(-N);
+  if(gl.length){
+    const vals=gl.map(x=>actual(x,stat));
+    const mean=vals.reduce((a,b)=>a+b,0)/gl.length;
+    const panel=el("div","panel",`<h3>Last ${gl.length} &mdash; ${LBL[stat]}
+      <span class="dim">&middot; mean ${mean.toFixed(2)}${p.out?""
+      :` &middot; tonight ${mu.toFixed(2)}`}</span></h3>`);
+    panel.append(overUnderChart(gl,stat,line));
+    let r=`<table><thead><tr><th class="l">Date</th><th class="l">Opp</th>
+      <th>Opp D</th><th>Min</th><th>${LBL[stat]}</th><th class="l">Side</th>
+      <th>Pts</th><th>Reb</th><th>Ast</th><th>3PM</th></tr></thead><tbody>`;
+    gl.slice().reverse().forEach(x=>{
+      const v=actual(x,stat), hitv=v>line;
+      r+=`<tr><td class="l dim">${x.d.slice(5)}</td>
+        <td class="l">${x.h?"vs":"@"} ${x.o}</td>
+        <td class="num">${rankCell(x.o,stat,win,p.pos)}</td>
+        <td class="num">${x.min.toFixed(0)}</td>
+        <td class="num"><b>${v.toFixed(0)}</b></td>
+        <td class="l" style="color:${v===line?"var(--dim)":
+          (hitv?"var(--over)":"var(--under)")}">${v===line?"on it":
+          (hitv?"over":"under")}</td>
+        <td class="num dim">${x.pts}</td><td class="num dim">${x.reb}</td>
+        <td class="num dim">${x.ast}</td><td class="num dim">${x.fg3m}</td></tr>`;
+    });
+    r+="</tbody></table>";
+    panel.append(el("div","",r));
+    box.append(panel);
+  }
+  box.append(defencePanel(p,stat,win));
+  $("#pcard").innerHTML=""; $("#pcard").append(box);
+}
+
+function defencePanel(p,stat,win){
+  const d=defOf(p.opp,win);
+  const wl=((DEF.windows.find(w=>w.key===win)||{}).label||win).toLowerCase();
+  if(!d) return el("div","panel",
+    `<h3>${p.opp} defence</h3><div class="hint">No games in this window.</div>`);
+  const a=d.allowed[stat];
+  const pa=allowedFor(p.opp,stat,win,p.pos);
+  const plbl=POSLBL[p.pos]||p.pos;
+  const soft=r=>r>=NTEAMS-7?"soft":(r<=8?"stingy":"middling");
+  const panel=el("div","panel",`
+    <h3>Opposing defence &mdash; ${p.opp}
+      <span class="dim">&middot; ${wl}, ${d.games} game${d.games===1?"":"s"}</span></h3>
+    <div class="grid2">
+      <div class="kv">
+        <div>Defensive rating</div><div class="num"><b>${d.drtg.toFixed(1)}</b>
+          <span class="${rankCls(d.drtg_rank)}">${ord(d.drtg_rank)}</span>
+          <span class="dim">of ${NTEAMS}</span></div>
+        <div>Pace</div><div class="num">${d.pace.toFixed(1)}
+          <span class="dim">&middot; ${ord(d.pace_rank)} fastest</span></div>
+      </div>
+      <div class="kv">
+        <div>${LBL[stat]}, all positions</div><div class="num">
+          <b>${a[0].toFixed(2)}</b> <span class="dim">per 100 poss &middot;</span>
+          <span class="${rankCls(a[1])}">${ord(a[1])} of ${NTEAMS}</span>
+          <span class="dim">${soft(a[1])}</span></div>
+        ${pa&&p.pos&&d.by_pos&&d.by_pos[p.pos]?`
+        <div>&hellip; to ${plbl}</div><div class="num">
+          <b>${pa[0].toFixed(2)}</b> <span class="dim">per 100 poss &middot;</span>
+          <span class="${rankCls(pa[1])}">${ord(pa[1])} of ${NTEAMS}</span>
+          <span class="dim">${soft(pa[1])}, ${sgn(pa[2]-1)} vs league</span></div>`:""}
+        <div>In the projection</div><div class="num">${sgn(p.oppf[stat]-1)}
+          <span class="dim">the model's own factor</span></div>
+      </div>
+    </div>`);
+  const hasPos=!!(p.pos&&d.by_pos&&d.by_pos[p.pos]);
+  let h=`<table><thead><tr><th class="l">Market</th><th>Per 100 poss</th>
+    <th>Rank</th><th>vs league</th>`+
+    (hasPos?`<th>To ${plbl}</th><th>Rank</th><th>vs league</th>`:"")+
+    `<th class="l"></th></tr></thead><tbody>`;
+  SK.forEach(k=>{
+    const x=d.allowed[k]; if(!x) return;
+    const y=hasPos?d.by_pos[p.pos][k]:null;
+    const w=Math.round(100*Math.min(Math.max(((y||x)[2]-0.8)/0.4,0),1));
+    const rr=(y||x)[1];
+    h+=`<tr${k===stat?' style="background:var(--panel2)"':''}>
+      <td class="l">${LBL[k]}</td><td class="num">${x[0].toFixed(2)}</td>
+      <td class="num ${rankCls(x[1])}">${ord(x[1])}</td>
+      <td class="num ${rankCls(x[1])}">${sgn(x[2]-1)}</td>`+
+      (y?`<td class="num">${y[0].toFixed(2)}</td>
+      <td class="num ${rankCls(y[1])}">${ord(y[1])}</td>
+      <td class="num ${rankCls(y[1])}">${sgn(y[2]-1)}</td>`:"")+
+      `<td class="l"><span class="bar" style="width:80px">
+        <i style="width:${w}%;background:${rr>=NTEAMS-7?"var(--good)":
+          (rr<=8?"var(--bad)":"var(--dim2)")}"></i></span></td></tr>`;
+  });
+  h+=`</tbody></table>
+    <div class="longform"><p>Rank 1 allows the fewest, ${NTEAMS} the most, so
+    green is the soft matchup, and these are per possession &mdash; pace is
+    counted separately above. ${hasPos?`The right-hand columns count only what
+    ${p.opp} conceded to ${plbl}, ranked against the other twenty-nine on the
+    same basis; the three positions share the possessions the defence faced,
+    so they add back to the all-positions figure. `:""} The ranks are today's rating, not the rating on
+    the night each game was played, so they are matchup context rather than a
+    record of it.</p>
+    <p>The model's own factor is the shrunk, exponentially weighted version of
+    the same thing, and it is the one that moves tonight's number. It is
+    milder than the raw ranking on purpose: ten games of defence is a small
+    sample, and the ablation puts these factors at about 0.2% of projection
+    error. Read them as context, not as a reason to bet.</p></div>`;
+  const wrap=el("div","hide"); wrap.id="f-oppall"; wrap.innerHTML=h;
+  panel.append(foldBtn("f-oppall","Every market conceded",false), wrap);
+  return panel;
+}
+
+/* ---------- method ---------- */
+function drawMethod(){
+  const m=D.meta, s=D.scorecard;
+  const skill=s?`Out of sample it scores a Brier of ${s.brier} against
+    ${s.brier_base} for simply quoting the base rate, and every probability
+    decile lands within a point of where it should. The full scorecard,
+    including the ablation and the accuracy tables, is written to
+    <span class="num">out/scorecard.txt</span> on every run.`:"";
+  $("#method").innerHTML=`
+  <div class="longform" style="max-width:72ch">
+  <p><b>Projection.</b> A per-minute rate for each market, exponentially
+  weighted over the player's past games, times projected minutes, times game
+  pace, times the opponent's allowed rate per possession, times a league
+  home/away factor. Pace and defence are kept separate so a fast team is not
+  mistaken for a leaky one.</p>
+  <p><b>Minutes.</b> Minutes conditional on playing, from a short-memory
+  average, then adjusted so the team's expected minutes add to 240 &mdash;
+  with the correction weighted by role, so a 38-minute starter barely moves
+  and the bench absorbs it. A player ruled out frees his minutes for everyone
+  behind him. In October this is the shakiest input in the model.</p>
+  <p><b>Distribution.</b> Negative binomial with a fitted mean&ndash;variance
+  power law, Var = &mu; + c&middot;&mu;<sup>p</sup>, because basketball counts
+  are overdispersed but not quadratically so: the textbook one-parameter
+  version gives a 23-point scorer twice the variance the data shows. A
+  monotone correction on P(over), fitted on the training season, straightens
+  out the remaining skew.</p>
+  <p><b>Honesty.</b> Constants are fitted on 2024-25 only; everything the
+  model is judged on comes from seasons it never saw. ${skill}</p>
+  <p><b>What it cannot tell you.</b> ESPN publishes game lines but not player
+  props, so this model has never been scored against a closing prop line.
+  Calibration says the probabilities are honest; it does not say they beat a
+  book. Until you log your own closing numbers, treat every edge here as
+  unproven.</p>
+  <p class="dim2">Built ${m.built} from the ${m.source}.
+  ${m.seasons.map(x=>`${x.season-1}-${String(x.season).slice(2)}: ${x.games} games`).join(" &middot; ")}.</p>
+  </div>`;
+}
+
+/* ---------- refresh ---------- */
+/* The page carries its data inline, so refreshing is not a fetch -- it is
+   the whole chain in daily.sh, a couple of minutes of Python, ending in a
+   rebuilt index.html. So the button starts it, streams its output, and
+   reloads only on a clean exit: a failed run leaves the old board up and
+   the log open, which is the honest outcome. */
+function wireRefresh(){
+  const btn=$("#rf"), msg=$("#rfmsg"), panel=$("#rfpanel"),
+        log=$("#rflog"), state=$("#rfstate"), note=$("#rfnote"),
+        autoBox=$("#rfauto");
+  const say=(s,n)=>{state.innerHTML=s; note.textContent=n||"";};
+  if(MODE==="live"){
+    // The public site is a copy of a board built somewhere else. There is
+    // nothing here to refresh, and saying "run ./serve.py" to a visitor
+    // would be nonsense, so the control goes away and the header says
+    // where the numbers came from instead.
+    $("#refresh").classList.add("hide");
+    return;
+  }
+  if(!TOKEN){
+    btn.disabled=true;
+    btn.title="A refresh runs Python, so it needs the local server:\n"
+      +"./.venv/bin/python serve.py   then open http://127.0.0.1:8765";
+    $("#rflineswrap").classList.add("hide");
+    $("#rfautowrap").classList.add("hide");
+    msg.textContent="opened as a file \u2014 run ./serve.py to enable";
+    return;
+  }
+  const AUTO="nba-props-auto";
+  let at=0, timer=null, watch=null, kicked=0;
+
+  function tell(s){
+    const games=Math.floor(s.budget/5);
+    msg.textContent=(s.credits
+      ? `${s.credits.remaining} credits left as of ${s.credits.at.slice(0,10)}`
+      : "no credit reading yet")+` \u00b7 + lines spends ${s.budget}`;
+    $("#rflineswrap").title=`Buys lines for the ${games} least-sampled `
+      +`games of the slate, ${s.budget} credits. Left unchecked, the `
+      +`refresh costs nothing and reprices the lines already stored.`;
+  }
+
+  async function tick(){
+    let r;
+    try{ r=await (await fetch("/api/log?from="+at)).json(); }
+    catch(e){ return; }
+    at=r.at;
+    if(r.text){ log.textContent+=r.text; log.scrollTop=log.scrollHeight; }
+    if(r.running){
+      note.textContent=`running ./daily.sh \u00b7 ${r.elapsed}s`
+        +(r.budget?` \u00b7 buying lines for ${Math.floor(r.budget/5)} games`
+                  :" \u00b7 spending nothing");
+      return;
+    }
+    clearInterval(timer); timer=null; btn.disabled=false;
+    // Whatever else happens, a run that ended badly leaves its log on
+    // screen: that output is the only account of what went wrong.
+    if(r.code!==0)panel.classList.remove("hide");
+    if(r.code===0){
+      say("Rebuilt \u2014 reloading",`${r.elapsed}s`);
+      setTimeout(()=>location.reload(),700);
+    }else if(r.code===3){
+      say("A run was already in progress","nothing was started");
+    }else{
+      say('<span class="bad">Refresh failed</span>',
+          `exit ${r.code} \u2014 the board is unchanged`);
+    }
+  }
+  function follow(){
+    panel.classList.remove("hide"); btn.disabled=true;
+    say('<span class="spin"></span>Refreshing','running ./daily.sh');
+    if(timer)return;
+    timer=setInterval(tick,700); tick();
+  }
+
+  async function start(lines){
+    btn.disabled=true; log.textContent=""; at=0;
+    panel.classList.remove("hide");
+    say('<span class="spin"></span>Starting',lines?"":"spending nothing");
+    try{
+      const res=await fetch("/api/refresh",{method:"POST",
+        headers:{"X-Refresh-Token":TOKEN,"Content-Type":"application/json"},
+        body:JSON.stringify({lines:!!lines})});
+      if(!res.ok&&res.status!==409){
+        const e=await res.json().catch(()=>({}));
+        say('<span class="bad">Could not start</span>',e.error||res.status);
+        btn.disabled=false; return;
+      }
+    }catch(e){
+      say('<span class="bad">Server not reachable</span>',
+          "is serve.py still running?");
+      btn.disabled=false; return;
+    }
+    follow();
+  }
+  btn.onclick=()=>start($("#rflines").checked);
+  $("#rfclose").onclick=()=>panel.classList.add("hide");
+  $("#rfreload").onclick=()=>location.reload();
+
+  /* Auto: watch the server, not the clock. The page holds a copy of the
+     data, so "is there a newer one" is a comparison of build stamps --
+     which also catches a run started by the scheduled job or from another
+     tab, not just one started here. */
+  function safeToReload(){
+    // Never pull the page out from under someone mid-sentence.
+    const a=document.activeElement;
+    if(a&&["INPUT","TEXTAREA","SELECT"].includes(a.tagName))return false;
+    return !$("#paste").value.trim();
+  }
+  async function poll(){
+    let s;
+    try{ s=await (await fetch("/api/status")).json(); }
+    catch(e){ return; }
+    tell(s);
+    if(s.run&&s.run.running){
+      if(!timer){ at=0; log.textContent=""; follow(); }
+      return;
+    }
+    if(s.meta&&s.meta.built&&s.meta.built!==D.meta.built){
+      if(safeToReload())return location.reload();
+      panel.classList.remove("hide");
+      $("#rfreload").classList.remove("hide");
+      say("A newer board has been built",
+          "finish what you are typing, then reload");
+      return;
+    }
+    // A slate behind today in the east is a board for a night already
+    // played, so rebuild it -- free, and at most once an hour. Nothing
+    // automatic ever buys lines: spending is a click, always.
+    const et=new Date().toLocaleDateString("en-CA",
+                                           {timeZone:"America/New_York"});
+    if(s.meta&&s.meta.slate&&s.meta.slate<et&&Date.now()-kicked>36e5){
+      kicked=Date.now();
+      start(false);
+    }
+  }
+  function setAuto(on){
+    try{ localStorage.setItem(AUTO,on?"1":"0"); }catch(e){}
+    autoBox.checked=on;
+    if(watch){ clearInterval(watch); watch=null; }
+    $("#rfautowrap").title=on
+      ? "On: checks every minute, reloads when a newer board has been "
+        + "built, and rebuilds one left over from a night already played. "
+        + "It never buys lines."
+      : "Off: the board changes only when you click Refresh.";
+    if(on){ watch=setInterval(poll,60000); poll(); }
+  }
+  autoBox.onchange=()=>setAuto(autoBox.checked);
+
+  let want=true;
+  try{ want=localStorage.getItem(AUTO)!=="0"; }catch(e){}
+  setAuto(want);
+  // Auto does the first poll itself; without it, still read the status
+  // once so the credit line is right and a run in flight is picked up.
+  if(!want)poll();
+}
+
+/* ---------- wiring ---------- */
+function showTab(t){
+  document.querySelectorAll("nav button").forEach(b=>
+    b.classList.toggle("on",b.dataset.t===t));
+  ["trends","board","sheet","player","method"].forEach(x=>
+    $("#t-"+x).classList.toggle("hide",x!==t));
+  if(t==="method")drawMethod();
+  if(t==="player")drawPlayer();
+  if(t==="trends")drawTrends();
+}
+function init(){
+  const m=D.meta;
+  const nOut=D.players.filter(p=>p.out).length;
+  $("#sub").innerHTML=`<b>${m.slate}</b> &middot; ${m.games} games &middot;
+    ${m.players-nOut} players${nOut?` &middot; ${nOut} ruled out`:""}
+    ${m.book?` &middot; <b>${m.book.props} markets priced</b> by
+      ${m.book.books.length} book${m.book.books.length===1?"":"s"}`:""}
+    &middot; built ${m.built}`;
+  if(MODE==="live")
+    $("#sub").insertAdjacentHTML("beforeend",
+      ` &middot; <span class="dim2">rebuilt nightly</span>`);
+  // The slate is the next game day, so a date behind today in Eastern
+  // means the board was built for a night that has already been played.
+  const etNow=new Date().toLocaleDateString("en-CA",
+                                            {timeZone:"America/New_York"});
+  if(m.slate<etNow)
+    $("#sub").insertAdjacentHTML("beforeend",
+      ` &middot; <span class="warn">built for ${m.slate}; `
+      +`it is ${etNow} in the east</span>`);
+  SK.forEach(k=>{
+    ["#stat","#pstat","#tstat"].forEach(sel=>{
+      const o=el("option","",LBL[k]); o.value=k; $(sel).append(o);
+    });
+  });
+  $("#stat").value="pts"; $("#pstat").value="pts"; $("#tstat").value="pts";
+  $("#statkeys").textContent=SK.join("  ");
+  if(m.book){
+    $("#boardhint").innerHTML=`Lines are real, from
+      ${m.book.books.length} book${m.book.books.length===1?"":"s"}.
+      <b>Mkt</b> is what they say, <b>Over</b> what the model says, and the
+      gap is the edge. Type over a line to price a different number.`;
+  }
+  D.games.forEach(g=>{
+    [$("#game"),$("#tgame")].forEach(sel=>{
+      const o=el("option","",`${g.away} @ ${g.home}`); o.value=g.gid;
+      sel.append(o);
+    });
+  });
+  DEF.windows.forEach(w=>{
+    const o=el("option","",w.label); o.value=w.key; $("#pwin").append(o);
+  });
+  $("#pwin").value=(DEF.windows[0]||{}).key||"last10";
+  document.querySelectorAll("nav button").forEach(b=>
+    b.onclick=()=>showTab(b.dataset.t));
+  document.querySelectorAll(".hint .more").forEach(b=>
+    b.onclick=()=>fold(b.dataset.fold));
+  ["stat","game","minmin","oo","uo","onlyedge","onlybook","more","showout"]
+    .forEach(id=>
+    $("#"+id).addEventListener("input",drawBoard));
+  $("#reset").onclick=()=>{for(const k in lines)delete lines[k];
+    sortBy="mu";sortDir=-1;$("#onlyedge").checked=false;
+    $("#showout").checked=true;$("#onlybook").checked=false;drawBoard();};
+  $("#run").onclick=priceSheet;
+  $("#paste").addEventListener("keydown",e=>{
+    if((e.metaKey||e.ctrlKey)&&e.key==="Enter")priceSheet();});
+  $("#demo").onclick=()=>{
+    const s=$("#stat").value;
+    $("#paste").value=D.players.filter(p=>p.min>=24).slice(0,15)
+      .map(p=>`${p.name}, ${s}, ${p.line[s]}, -110, -110`).join("\n");
+    priceSheet();
+  };
+  /* the typable player picker */
+  const q=$("#pq");
+  // Focusing a field that already holds a name should offer the whole
+  // slate, not just the one name sitting in it.
+  q.addEventListener("focus",()=>{menuIdx=-1;q.select();openMenu("");});
+  q.addEventListener("input",()=>{menuIdx=0;openMenu();});
+  q.addEventListener("blur",()=>setTimeout(closeMenu,120));
+  q.addEventListener("keydown",e=>{
+    if($("#pmenu").classList.contains("hide")&&
+       ["ArrowDown","ArrowUp"].includes(e.key)){menuIdx=0;openMenu("");return;}
+    if(e.key==="ArrowDown"){e.preventDefault();
+      menuIdx=Math.min(menuIdx+1,menuList.length-1);paintMenu();}
+    else if(e.key==="ArrowUp"){e.preventDefault();
+      menuIdx=Math.max(menuIdx-1,0);paintMenu();}
+    else if(e.key==="Enter"){e.preventDefault();
+      const p=menuList[menuIdx>=0?menuIdx:0]; if(p)pick(p);}
+    else if(e.key==="Escape"){closeMenu();q.blur();}
+  });
+  ["pstat","pline","plast","pwin"].forEach(id=>
+    $("#"+id).addEventListener("input",()=>{
+      if(id==="pwin")drawBoard();
+      drawPlayer();
+    }));
+  ["tstat","tgame","tlast","tsplit","tminmin","tseason","tsig"].forEach(id=>
+    $("#"+id).addEventListener("input",drawTrends));
+  $("#treset").onclick=()=>{
+    $("#tstat").value="pts"; $("#tgame").value=""; $("#tlast").value="10";
+    $("#tsplit").value="all"; $("#tminmin").value=15;
+    $("#tseason").checked=false; $("#tsig").checked=false;
+    tSort="hit"; tDir=-1; drawTrends();
+  };
+  wireRefresh();
+  drawBoard();
+  drawTrends();
+}
+init();
+</script>

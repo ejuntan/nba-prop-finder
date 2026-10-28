@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.pyc
+data/*.sqlite3
+data/*.sqlite3-*
+data/*.pkl
+data/*.log
+data/calib.json
+out/tool_data.json
+tool/index.html
+tool/truth.json
+.env
+
+# Everything the chain produces locally stays local; only site/ is
+# deployed, and site/data.json is deliberately NOT ignored -- it is the
+# board the live service serves, and committing it is the deploy.
+out/*.csv
+out/*.txt
+data/.running/

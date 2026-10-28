@@ -1,0 +1,21 @@
+# One free web service, serving a board built somewhere else.
+#
+# Free on Render means: no cron job, no background worker, no persistent
+# disk, and a free Postgres that expires thirty days after it is created.
+# So nothing is scheduled up here and nothing is stored up here -- the
+# chain runs on the machine that has the data and the API key, and ends
+# by pushing two files into site/. A push is the deploy.
+#
+# The instance sleeps after fifteen minutes with no traffic and takes
+# about a minute to wake. For a board one person reads that is the right
+# trade; paying for Starter removes it.
+services:
+  - type: web
+    name: nba-props
+    runtime: python
+    plan: free
+    rootDir: site
+    buildCommand: pip install -r requirements.txt
+    startCommand: python web.py
+    healthCheckPath: /healthz
+    autoDeploy: true

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Runs the whole chain once a night, about half an hour before the
+     first tip on the US east coast. This machine is UTC+8, so 06:30
+     local is 18:30 Eastern: late enough that the lines are close to
+     closing and the injury report is current, early enough to be useful.
+
+     Install:   launchctl load -w ~/Library/LaunchAgents/com.tanejun.nba-daily.plist
+     Remove:    launchctl unload -w ~/Library/LaunchAgents/com.tanejun.nba-daily.plist
+     Run now:   launchctl start com.tanejun.nba-daily
+
+     ODDS_API_KEY is deliberately not here: fetch_odds.py reads the
+     gitignored .env in the project directory, so the key lives in one
+     place and not in a file that gets copied into LaunchAgents. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>              <string>com.tanejun.nba-daily</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd /Users/tane-jun/nba_props &amp;&amp; ./daily.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>   <integer>6</integer>
+    <key>Minute</key> <integer>30</integer>
+  </dict>
+  <key>RunAtLoad</key>          <false/>
+  <key>StandardOutPath</key>    <string>/Users/tane-jun/nba_props/data/launchd.log</string>
+  <key>StandardErrorPath</key>  <string>/Users/tane-jun/nba_props/data/launchd.log</string>
+  <key>WorkingDirectory</key>   <string>/Users/tane-jun/nba_props</string>
+</dict>
+</plist>
