@@ -11,14 +11,24 @@ the board can also run itself, through `serve.py`, from a button in its
 header.
 
 The page is dark, full stop &mdash; it does not follow the system theme.
-It has four tabs: **Board** (tonight's slate), **Sheet** (paste a
-list of lines), **Player** (one player in depth) and **Method**. The board
-shows eight columns by default &mdash; player, match, minutes, projection,
-line, P(over), edge, EV, and the opponent's defensive rank &mdash; with
-**More columns** adding standard deviation, the model's own line, both fair
-prices, side, Kelly, availability and pace. The scorecard is not on the
-page: it is a thing you read once, so it lives in `out/scorecard.txt`,
-rewritten on every run, and is summarised below.
+It opens on a masthead and four tiles: which night this is, who is on it,
+whether anyone is quoting it, and how the model has scored out of sample.
+Each tile carries the qualifier under the number, because a number on its
+own invites a reader to assume the best about it.
+
+Then four tabs. **Trends** is the one it lands on &mdash; how often each
+player has cleared tonight's line over his last 5, 10, 15 or 20, with the
+run he is on, home and away splits, the record against tonight's
+opponent, the average margin, and minutes in the window against minutes
+projected tonight. **Sheet** prices a pasted list of lines. **Player** is
+one player in depth: the last-N chart, the game log with each opponent's
+rank, and the opposing defence. **Method** says how the numbers are made.
+
+There used to be a fifth tab, Board, which priced a line you typed
+against one player at a time. The Sheet does that for a whole list and
+the Player tab does it in more depth, so it went. The scorecard is not on
+the page either: it is a thing you read once, so it lives in
+`out/scorecard.txt`, rewritten on every run, and is summarised below.
 
 ## The live site
 
