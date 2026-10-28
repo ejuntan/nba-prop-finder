@@ -18,4 +18,13 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python web.py
     healthCheckPath: /healthz
-    autoDeploy: true
+    # Deploy on every push to the connected branch. (The older spelling,
+    # autoDeploy: true, is deprecated.)
+    autoDeployTrigger: commit
+    envVars:
+      # Set this in the Render dashboard to put the site behind a
+      # password; leave it unset and the board is public, which The Odds
+      # API's terms allow -- displaying odds in a website is permitted,
+      # it is reselling them as a data feed that is not.
+      - key: SITE_PASSWORD
+        sync: false

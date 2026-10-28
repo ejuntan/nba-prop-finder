@@ -1213,7 +1213,8 @@ function drawMethod(){
   Calibration says the probabilities are honest; it does not say they beat a
   book. Until you log your own closing numbers, treat every edge here as
   unproven.</p>
-  <p class="dim2">Built ${m.built} from the ${m.source}.
+  <p class="dim2">Built ${m.built} from the ${m.source}${m.book?
+    ", with prices from The Odds API":""}.
   ${m.seasons.map(x=>`${x.season-1}-${String(x.season).slice(2)}: ${x.games} games`).join(" &middot; ")}.</p>
   </div>`;
 }

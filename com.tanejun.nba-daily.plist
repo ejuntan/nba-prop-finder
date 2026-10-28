@@ -20,6 +20,14 @@
     <string>-lc</string>
     <string>cd /Users/tane-jun/nba_props &amp;&amp; ./daily.sh</string>
   </array>
+  <!-- Deploy the board the run just built. Not a secret: the push is a
+       git push, and git finds its own credential. Push by hand once
+       first, so the credential is in the keychain before this runs
+       unattended. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PUBLISH_PUSH</key> <string>1</string>
+  </dict>
   <key>StartCalendarInterval</key>
   <dict>
     <key>Hour</key>   <integer>6</integer>

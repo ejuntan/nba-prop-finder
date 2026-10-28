@@ -60,8 +60,18 @@ def push(meta):
     else:
         print("  nothing changed")
         return 0
+    if not git("remote").stdout.strip():
+        print("  committed, but there is no remote to push to yet. "
+              "Add one and this becomes the deploy:\n"
+              "    git remote add origin <your repo URL>\n"
+              "    git push -u origin main")
+        return 0
     r = git("push")
-    print("  push:", (r.stdout + r.stderr).strip()[:300] or "ok")
+    out = (r.stdout + r.stderr).strip()
+    print("  push:", out[:300] or "ok")
+    if r.returncode:
+        print("  the board is committed locally; the live site will "
+              "update on the next successful push")
     return r.returncode
 
 

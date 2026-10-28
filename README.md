@@ -42,11 +42,29 @@ deploy.
 ./.venv/bin/python publish.py --push   # and deploy it
 ```
 
-One-time setup: create a repository on GitHub and push this one to it,
-then on Render pick **New &rarr; Blueprint** and point it at the repo.
-`render.yaml` describes the service, so there is nothing to configure by
-hand. Afterwards, set `PUBLISH_PUSH=1` in the environment the nightly job
-runs in and every run deploys itself.
+One-time setup:
+
+1. Create an empty repository on GitHub &mdash; no README, no
+   `.gitignore`, nothing to merge.
+2. `git remote add origin <url>` and `git push -u origin main`. Do this
+   by hand the first time, so the credential is in the keychain before
+   anything runs unattended.
+3. On Render: **New &rarr; Blueprint**, pick the repository, apply.
+   `render.yaml` describes the service, so there is nothing to fill in.
+
+The LaunchAgent already sets `PUBLISH_PUSH=1`, so once it is installed
+every nightly run deploys itself.
+
+**A password, if you want one.** Leave `SITE_PASSWORD` unset and the
+board is public. Set it in Render's dashboard and the whole site sits
+behind one password with no account to manage &mdash; the health check
+stays open, or Render would read a protected site as a failed deploy.
+
+Public is allowed, incidentally: The Odds API's terms permit *"displaying
+our data in a UI, website, or mobile app, including for commercial use"*
+so long as their data is not the product being sold. What they prohibit
+is reselling it as a feed. Attribution is optional; the Method tab
+carries it anyway.
 
 Two things to know. A free instance **sleeps after fifteen minutes**
 without traffic and takes about a minute to wake, so the first load of
