@@ -16,11 +16,16 @@ whether anyone is quoting it, and how the model has scored out of sample.
 Each tile carries the qualifier under the number, because a number on its
 own invites a reader to assume the best about it.
 
-Then four tabs. **Trends** is the one it lands on &mdash; how often each
+Then six tabs. **Trends** is the one it lands on &mdash; how often each
 player has cleared tonight's line over his last 5, 10, 15 or 20, with the
 run he is on, home and away splits, the record against tonight's
 opponent, the average margin, and minutes in the window against minutes
-projected tonight. **Sheet** prices a pasted list of lines. **Player** is
+projected tonight. **Top props** ranks every market a book is quoting by the model's edge
+against the other books on the same number, with the same three-way
+split `edges.py` uses on the command line: against a consensus, claiming
+more than ten points (a bug report, not a bet), and one or two books only.
+**Slip** is the one thing here a sportsbook's own slip will not do &mdash;
+see below. **Sheet** prices a pasted list of lines. **Player** is
 one player in depth: the last-N chart, the game log with each opponent's
 rank, and the opposing defence. **Method** says how the numbers are made.
 
@@ -218,6 +223,51 @@ one-parameter form gives that starter a variance of 171 where the data says
 77 — which would make Over 29.5 look live when it is not. A monotone
 isotonic correction on `P(over)`, fitted on the training season, straightens
 out the remaining skew.
+
+## The slip, and why a parlay is not a product
+
+Multiplying the legs together is what every parlay calculator does, and
+it assumes the legs are independent. Legs on one player never are:
+points, rebounds and assists all run off the same minutes, and points
+sits *inside* points+rebounds+assists, so one cannot land without
+dragging the other. Legs in one game are not independent either &mdash;
+the pace that makes one land makes the other more likely, while two
+team-mates' shots come out of the same pool.
+
+So the slip measures it rather than assuming it. For each pair of legs it
+takes the players' own game logs, matches them by date, converts both
+series to normal scores, and correlates those &mdash; normal scores
+because that is the correlation a Gaussian copula actually wants, not the
+correlation of two skewed counts. The estimate is shrunk towards zero by
+how little of it there is, and a leg on the under has its sign flipped,
+because it lands when the number is *small*.
+
+The legs are then priced through that copula: each becomes a threshold on
+a standard normal, the normals are correlated, and the slip lands when
+every one clears its threshold. Monte Carlo with a fixed seed, so a slip
+always prices the same. The naive independent number is shown beside it,
+because the gap between them is the whole point.
+
+It is checked against scipy's bivariate normal on 25 combinations of
+probability and correlation, plus the two cases with closed forms: three
+independent legs must equal their product, and two perfectly correlated
+legs must equal the smaller one, not the product.
+
+The warnings name what was found, including when it contradicts the
+obvious story. One player's points and rebounds over his last twenty
+games came out at &minus;0.23 &mdash; they have moved *against* each
+other, which makes that parlay harder than multiplying suggests, not
+easier. Assuming a positive correlation there would have been wrong.
+
+## Odds are decimal
+
+Everything a person reads &mdash; the page, the tables, the bench &mdash;
+is in decimal, because a decimal price is a multiplier you can apply to a
+stake and its reciprocal is the implied probability. The books quote
+American and that is what gets stored and graded, so the conversion
+happens once at the boundary and nothing recomputes from the rounded
+number. The Sheet accepts either notation: American always carries a
+sign, decimal never does.
 
 ## The scorecard
 

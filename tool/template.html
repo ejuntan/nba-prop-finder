@@ -159,7 +159,11 @@ h2 .dim{font-weight:400;font-size:13px}
 h3{font-size:11px;margin:0 0 8px;color:var(--dim);text-transform:uppercase;
   letter-spacing:.4px;font-weight:600}
 h3 .dim{text-transform:none;letter-spacing:0;font-weight:400}
-.hide{display:none}
+/* Last rule wins among equal specificity, and plenty of components below
+   set their own display -- the refresh control did, and stayed on screen
+   on the public site after being told to go. !important is the honest
+   way to say that hidden means hidden, rather than racing each one. */
+.hide{display:none!important}
 /* typable player picker */
 .combo{position:relative;display:inline-block}
 .combo input{width:210px}
@@ -208,6 +212,25 @@ h3 .dim{text-transform:none;letter-spacing:0;font-weight:400}
   font-size:11.5px;pointer-events:none;white-space:nowrap;
   box-shadow:0 6px 18px rgba(0,0,0,.4)}
 .tip b{font-family:var(--mono)}
+/* a count on the Slip tab, so a slip in progress is visible from
+   anywhere on the page */
+.badge{display:inline-block;min-width:17px;padding:0 5px;margin-left:5px;
+  border-radius:999px;background:var(--accent);color:#06101d;
+  font-size:10.5px;font-weight:700;line-height:16px;text-align:center;
+  font-family:var(--mono)}
+button.add{background:var(--panel2);border:1px solid var(--line2);
+  color:var(--dim);border-radius:var(--r-sm);width:24px;height:22px;
+  font-size:13px;line-height:1;cursor:pointer;padding:0}
+button.add:hover{color:var(--ink);border-color:var(--accent)}
+button.add.on{background:var(--accent-soft);border-color:var(--accent);
+  color:var(--accent)}
+/* a stated reason the slip is not what it looks like */
+.note{border:1px solid var(--line2);border-left-width:3px;
+  background:var(--panel);border-radius:var(--r-sm);padding:9px 12px;
+  margin-bottom:8px;font-size:12.5px;color:var(--dim)}
+.note b{color:var(--ink);font-weight:600}
+.note.bad{border-left-color:var(--bad)}
+.note.warn{border-left-color:var(--warn)}
 /* the last-N strip: one mark per game, oldest first, 2px of surface
    between them so adjacent games never read as one block */
 .strip{display:inline-flex;gap:2px;vertical-align:-2px}
@@ -225,11 +248,6 @@ h3 .dim{text-transform:none;letter-spacing:0;font-weight:400}
 #refresh label{display:flex;gap:4px;align-items:center;cursor:pointer;
   white-space:nowrap}
 #rf[disabled]{opacity:.45;cursor:not-allowed}
-/* .hide is a bare class and these are an id and a descendant of one, so
-   both outrank it and the control stayed on screen when it was told to
-   go away. The public site has no pipeline behind it, so a Refresh
-   button there is a button that does nothing. */
-#refresh.hide,#refresh label.hide{display:none}
 #rfpanel{margin-bottom:14px}
 .rflog{margin:8px 0 0;max-height:210px;overflow:auto;background:var(--bg);
   border:1px solid var(--line);border-radius:6px;padding:8px 10px;
@@ -278,6 +296,8 @@ h3 .dim{text-transform:none;letter-spacing:0;font-weight:400}
 <div class="kpis" id="kpis"></div>
 <nav>
   <button data-t="trends" class="on">Trends</button>
+  <button data-t="props">Top props</button>
+  <button data-t="slip">Slip <span class="badge hide" id="slipn"></span></button>
   <button data-t="sheet">Sheet</button>
   <button data-t="player">Player</button>
   <button data-t="method">Method</button>
@@ -345,10 +365,53 @@ h3 .dim{text-transform:none;letter-spacing:0;font-weight:400}
 </section>
 
 
+<section id="t-props" class="hide">
+  <div class="panel">
+    <div class="bar-row">
+      <select id="pxgame"><option value="">All games</option></select>
+      <label>Min books <select id="pxbooks">
+        <option value="3" selected>3+</option><option value="1">any</option>
+      </select></label>
+      <label>Min edge <input type="number" id="pxedge" value="0" step="1"
+        style="width:62px"> %</label>
+      <button class="ghost" id="pxreset">Reset</button>
+    </div>
+    <div class="hint"><span>Every market a book is quoting tonight, ranked
+      by the model's edge against the other books on the same number.</span>
+      <span class="more" data-fold="x1">how to read it</span></div>
+    <div class="longform hide" id="f-x1">
+      <p>Two different questions get confused in prop betting and this
+      keeps them apart. <b>Is the price good against the book offering
+      it?</b> Devig that book's own two-way market and compare. It is the
+      number most tools show, and it is the weaker one: a book that hangs
+      a bad line on both sides looks like enormous edge to a model that
+      is wrong in the same direction.</p>
+      <p><b>Is the price good against the market?</b> Take the median
+      no-vig probability of every book quoting that same number and
+      compare with that. The consensus is a far better estimate of the
+      truth than any single book, so this is the honest figure, and it is
+      the one ranked here. Where fewer than three books are quoting there
+      is no consensus, and those markets are listed separately rather
+      than quietly ranked alongside.</p>
+      <p>The second table is the one worth reading carefully. A claimed
+      edge over ten points against a real consensus is nearly always the
+      model being wrong, not the market: a role that has changed, minutes
+      it has not caught up with, a player it knows too little about. Four
+      markets on one player all claiming the same thing is one
+      disagreement, not four.</p>
+    </div>
+  </div>
+  <div id="pxbody"></div>
+</section>
+
+<section id="t-slip" class="hide">
+  <div id="slipbody"></div>
+</section>
+
 <section id="t-sheet" class="hide">
   <div class="panel">
-    <textarea id="paste" spellcheck="false" placeholder="jokic, pra, 44.5, -115, -105
-sga, pts, 32.5, -120, +100
+    <textarea id="paste" spellcheck="false" placeholder="jokic, pra, 44.5, 1.87, 1.95
+sga, pts, 32.5, 1.83, 2.00
 tatum, reb, 8.5"></textarea>
     <div class="bar-row" style="margin-top:8px">
       <button class="go" id="run">Price them</button>
@@ -358,7 +421,7 @@ tatum, reb, 8.5"></textarea>
     </div>
     <div class="hint"><span>One per line:
       <span class="num">player, stat, line, over, under</span> &mdash; odds
-      optional.</span>
+      optional, decimal or American.</span>
       <span class="more" data-fold="s1">stat keys</span></div>
     <div class="longform hide" id="f-s1">
       <p class="num" id="statkeys"></p>
@@ -503,7 +566,32 @@ function p2a(p){
   p=Math.min(Math.max(p,1e-6),1-1e-6);
   return p>=0.5 ? -Math.round(100*p/(1-p)) : Math.round(100*(1-p)/p);
 }
-function fmtA(o){ return (o>0?"+":"")+o; }
+/* The page shows decimal odds, because a decimal price is a multiplier
+   you can read: 2.50 pays two and a half times the stake, and its
+   reciprocal is the implied probability. American prices still arrive
+   from the book and are still what the Python side stores, so they are
+   converted once, exactly, where they enter -- never round-tripped,
+   since American is an integer scale and a return trip through it would
+   quietly move the number. */
+/* Declared as functions, not consts: the maths test lifts this block out
+   of the page and evals it, and only function declarations reach the
+   scope it calls them from. */
+function a2d(o){ o=+o; return o>0 ? 1+o/100 : 1+100/-o; }
+function d2p(d){ return 1/d; }
+function p2d(p){ return 1/Math.min(Math.max(p,1e-6),1-1e-6); }
+function fmtD(d){ return (+d).toFixed(2); }
+function devigP(a,b){
+  let lo=0.01, hi=10;
+  for(let i=0;i<80;i++){
+    const k=(lo+hi)/2;
+    if(Math.pow(a,1/k)+Math.pow(b,1/k)>1) hi=k; else lo=k;
+  }
+  const k=(lo+hi)/2;
+  return [Math.pow(a,1/k),Math.pow(b,1/k)];
+}
+function devigD(dO,dU){ return devigP(d2p(dO),d2p(dU)); }
+function evD(p,d){ return p*(d-1)-(1-p); }
+function kellyD(p,d){ return Math.max((p*(d-1)-(1-p))/(d-1),0); }
 function devig(oo,uo){
   const a=a2p(oo), b=a2p(uo);
   let lo=0.01, hi=10;
@@ -516,6 +604,124 @@ function devig(oo,uo){
 }
 function ev(p,o){ o=+o; const b=o>0?o/100:100/-o; return p*b-(1-p); }
 function kelly(p,o){ o=+o; const b=o>0?o/100:100/-o; return Math.max((p*b-(1-p))/b,0); }
+
+/* ---------- the normal, for parlays ---------- */
+/* Every other number on this page is a count. A parlay is a joint
+   probability, and multiplying the legs together assumes they are
+   independent, which legs on one player or one game never are. These are
+   the pieces needed to do it properly: a normal distribution to push the
+   legs' own probabilities through, a Cholesky factor to correlate them,
+   and a seeded generator so the same slip always prices the same.
+   erfc is built on the incomplete gamma, which leans on the lgamma
+   above -- already proved against scipy, so this inherits that. */
+function gser(a,x){
+  let ap=a, sum=1/a, del=sum;
+  for(let n=0;n<400;n++){
+    ap++; del*=x/ap; sum+=del;
+    if(Math.abs(del)<Math.abs(sum)*1e-17)break;
+  }
+  return sum*Math.exp(-x+a*Math.log(x)-lgamma(a));
+}
+function gcf(a,x){
+  const tiny=1e-300;
+  let b=x+1-a, c=1/tiny, d=1/b, h=d;
+  for(let i=1;i<=400;i++){
+    const an=-i*(i-a);
+    b+=2; d=an*d+b; if(Math.abs(d)<tiny)d=tiny;
+    c=b+an/c; if(Math.abs(c)<tiny)c=tiny;
+    d=1/d; const del=d*c; h*=del;
+    if(Math.abs(del-1)<1e-17)break;
+  }
+  return Math.exp(-x+a*Math.log(x)-lgamma(a))*h;
+}
+function erfc(x){
+  const q=x*x<1.5 ? 1-gser(0.5,x*x) : gcf(0.5,x*x);
+  return x>=0?q:2-q;
+}
+function ncdf(z){ return 0.5*erfc(-z/Math.SQRT2); }
+/* Acklam's rational start, then Halley steps against our own ncdf, so
+   the inverse is exact to the accuracy of the forward function. */
+function nppf(p){
+  if(!(p>0))return -Infinity;
+  if(p>=1)return Infinity;
+  const a=[-3.969683028665376e1,2.209460984245205e2,-2.759285104469687e2,
+           1.383577518672690e2,-3.066479806614716e1,2.506628277459239e0],
+        b=[-5.447609879822406e1,1.615858368580409e2,-1.556989798598866e2,
+           6.680131188771972e1,-1.328068155288572e1],
+        c=[-7.784894002430293e-3,-3.223964580411365e-1,-2.400758277161838e0,
+           -2.549732539343734e0,4.374664141464968e0,2.938163982698783e0],
+        d=[7.784695709041462e-3,3.224671290700398e-1,2.445134137142996e0,
+           3.754408661907416e0];
+  const lo=0.02425;
+  let x,q,r;
+  if(p<lo){ q=Math.sqrt(-2*Math.log(p));
+    x=(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/
+      ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1); }
+  else if(p<=1-lo){ q=p-0.5; r=q*q;
+    x=(((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/
+      (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1); }
+  else { q=Math.sqrt(-2*Math.log(1-p));
+    x=-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/
+       ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1); }
+  for(let i=0;i<2;i++){
+    const e=ncdf(x)-p, u=e*Math.sqrt(2*Math.PI)*Math.exp(x*x/2);
+    x=x-u/(1+x*u/2);
+  }
+  return x;
+}
+/* Lower-triangular factor. A correlation matrix built from short, noisy
+   samples can come back a hair short of positive definite; the floor
+   keeps the factorisation real instead of returning NaNs. */
+function chol(C){
+  const n=C.length, L=[];
+  for(let i=0;i<n;i++)L.push(new Array(n).fill(0));
+  for(let i=0;i<n;i++)for(let j=0;j<=i;j++){
+    let s=C[i][j];
+    for(let k=0;k<j;k++)s-=L[i][k]*L[j][k];
+    if(i===j)L[i][j]=Math.sqrt(Math.max(s,1e-12));
+    else L[i][j]=s/L[j][j];
+  }
+  return L;
+}
+function rng32(seed){
+  return function(){
+    seed|=0; seed=seed+0x6D2B79F5|0;
+    let t=Math.imul(seed^seed>>>15,1|seed);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+/* P(every leg lands), given each leg's own probability and the
+   correlations between them. A Gaussian copula: each leg becomes a
+   threshold on a standard normal, the normals are correlated by C, and
+   the slip lands when every one clears its threshold. Monte Carlo
+   rather than a closed form, because a slip can hold any number of
+   legs; the seed is fixed so the same slip always shows the same
+   number. */
+function jointProb(ps,C,draws){
+  const n=ps.length;
+  if(n===0)return 0;
+  if(n===1)return ps[0];
+  const z=ps.map(p=>nppf(1-p)), L=chol(C), rnd=rng32(20261028);
+  draws=draws||40000;
+  let hit=0;
+  const u=new Array(n);
+  for(let d=0;d<draws;d++){
+    for(let i=0;i<n;i+=2){
+      const r=Math.sqrt(-2*Math.log(1-rnd())), th=2*Math.PI*rnd();
+      u[i]=r*Math.cos(th);
+      if(i+1<n)u[i+1]=r*Math.sin(th);
+    }
+    let ok=true;
+    for(let i=0;i<n&&ok;i++){
+      let x=0;
+      for(let k=0;k<=i;k++)x+=L[i][k]*u[k];
+      if(x<=z[i])ok=false;
+    }
+    if(ok)hit++;
+  }
+  return hit/draws;
+}
 
 
 /* ---------- helpers ---------- */
@@ -540,6 +746,7 @@ const sgn=x=>(x>=0?"+":"")+(100*x).toFixed(1)+"%";
 const cls=x=>x>0.0001?"good":(x<-0.0001?"bad":"dim");
 // sgn is a percentage; a margin is a count of points, rebounds or threes.
 const sgn2=x=>(x>=0?"+":"")+x.toFixed(1);
+const rho2=x=>(x>=0?"+":"\u2212")+Math.abs(x).toFixed(2);
 const dash=`<span class="dim2">&mdash;</span>`;
 function thinPill(p){
   return p.thin?` <span class="pill q" title="Fewer than fifteen games of his own record behind this projection">thin record</span>`:"";
@@ -841,6 +1048,317 @@ function drawTrends(){
   });
 }
 
+/* ---------- top props ---------- */
+/* The same two questions edges.py asks on the command line, asked the
+   same way here: against the book, and against the consensus of the
+   books on that number. Nothing is recomputed differently -- a quote
+   carries its own consensus from the fetch, and the model's side comes
+   from the same pOver the rest of the page uses. */
+const SUSPECT=0.10;
+function quotes(){
+  const out=[];
+  D.players.forEach(p=>{
+    if(p.out||!p.book)return;
+    for(const stat in p.book){
+      if(!D.calib[stat])continue;
+      const q=p.book[stat], mu=p.mu[stat], c=D.calib[stat];
+      const po=pOver(mu,c,q.line), push=pPush(mu,c,q.line), pu=1-po-push;
+      const dO=a2d(q.over), dU=a2d(q.under);
+      const dv=devigD(dO,dU);
+      // The consensus where there is one, this book's own devig where
+      // there is not. Which it is, the row says.
+      const mo=q.cons==null?dv[0]:q.cons, mkU=1-mo;
+      const eo=evD(po,dO), eu=evD(pu,dU);
+      const over=eo>=eu;
+      out.push({p,stat,q,mu,line:q.line,
+        side:over?"over":"under",
+        odds:over?dO:dU,
+        book:over?q.over_book:q.under_book,
+        model:over?po:pu, mkt:over?mo:mkU,
+        edge:(over?po-mo:pu-mkU),
+        ev:Math.max(eo,eu), kelly:over?kellyD(po,dO):kellyD(pu,dU),
+        n:q.n, cons:q.cons!=null});
+    }
+  });
+  return out;
+}
+function propRow(r,rank){
+  const key=legKey(r.p.id,r.stat,r.side);
+  return `<tr>
+    <td class="l dim2">${rank}</td>
+    <td class="l"><span class="name" data-id="${r.p.id}">${r.p.name}</span>${thinPill(r.p)}</td>
+    <td class="l"><span class="dim">${matchup(r.p)}</span></td>
+    <td class="l">${LBL[r.stat]}</td>
+    <td class="num">${r.line.toFixed(1)}</td>
+    <td class="l"><b>${r.side}</b></td>
+    <td class="num">${fmtD(r.odds)}</td>
+    <td class="l dim">${r.book}${r.n>1?` <span class="dim2">+${r.n-1}</span>`:""}</td>
+    <td class="num">${r.mu.toFixed(1)}</td>
+    <td class="num">${pct(r.model)}</td>
+    <td class="num dim">${pct(r.mkt)}</td>
+    <td class="num ${cls(r.edge)}">${sgn(r.edge)}</td>
+    <td class="num ${cls(r.ev)}">${sgn(r.ev)}</td>
+    <td><button class="add${inSlip(key)?" on":""}" data-leg="${key}"
+      >${inSlip(key)?"\u2713":"+"}</button></td></tr>`;
+}
+function propTable(title,note,rows){
+  if(!rows.length)return "";
+  const head=`<tr><th class="l"></th><th class="l">Player</th>
+    <th class="l">Match</th><th class="l">Market</th><th>Line</th>
+    <th class="l">Side</th><th>Price</th><th class="l">Book</th>
+    <th>Proj</th><th>Model</th><th>Mkt</th><th>Edge</th><th>EV</th>
+    <th></th></tr>`;
+  return `<div class="panel"><h3>${title}
+      <span class="dim">${note}</span></h3></div>
+    <div class="scroll"><table><thead>${head}</thead><tbody>`
+    +rows.map((r,i)=>propRow(r,i+1)).join("")+`</tbody></table></div>`;
+}
+function drawProps(){
+  const gid=$("#pxgame").value, minB=+$("#pxbooks").value,
+        minE=(+$("#pxedge").value||0)/100;
+  let rows=quotes().filter(r=>(!gid||r.p.gid==gid)&&r.edge>=minE);
+  const body=$("#pxbody");
+  if(!quotes().length){
+    body.innerHTML=`<div class="panel"><h3>Nothing is quoted tonight</h3>
+      <div class="hint"><span>No book has been fetched for this slate, so
+      there is no market to measure against. The projections are on the
+      <b>Trends</b> and <b>Player</b> tabs either way; what is missing
+      here is the other half of the comparison, not the model.</span>
+      </div></div>`;
+    return;
+  }
+  const cons=rows.filter(r=>r.cons&&r.n>=minB).sort((a,b)=>b.edge-a.edge);
+  const sane=cons.filter(r=>r.edge<SUSPECT), wild=cons.filter(r=>r.edge>=SUSPECT);
+  const thin=rows.filter(r=>!r.cons||r.n<minB).sort((a,b)=>b.edge-a.edge);
+  body.innerHTML=
+    propTable("Against the consensus",
+      `&middot; ${sane.length} markets, ${minB}+ books on the number`,sane)
+    +propTable(`<span class="warn">Claiming more than ${100*SUSPECT}%</span>`,
+      "&middot; read these as a bug report on the model, not a bet",wild)
+    +propTable("One or two books only",
+      "&middot; no consensus to measure against &mdash; suspect",thin);
+  body.querySelectorAll(".name").forEach(n=>{
+    n.onclick=()=>selectPlayerById(+n.dataset.id);});
+  body.querySelectorAll(".add").forEach(b=>{
+    b.onclick=()=>{toggleLeg(b.dataset.leg);drawProps();};});
+}
+
+/* ---------- the slip ---------- */
+/* Multiplying the legs together assumes they are independent. Legs on
+   one player never are -- points, rebounds and assists all run off the
+   same minutes -- and legs in one game are not either. So the slip
+   measures how its legs have actually moved together, on the players'
+   own game logs, and prices the parlay through a copula with those
+   correlations in it. The naive number is shown beside it, because the
+   gap between the two is the whole point. */
+const SLIP_KEY="nba-props-slip";
+let SLIP=[];
+try{ SLIP=JSON.parse(localStorage.getItem(SLIP_KEY)||"[]"); }catch(e){ SLIP=[]; }
+const legKey=(id,stat,side)=>`${id}|${stat}|${side}`;
+const inSlip=k=>SLIP.indexOf(k)>=0;
+function saveSlip(){
+  try{ localStorage.setItem(SLIP_KEY,JSON.stringify(SLIP)); }catch(e){}
+  const n=SLIP.length, b=$("#slipn");
+  b.textContent=n; b.classList.toggle("hide",!n);
+}
+function toggleLeg(k){
+  const i=SLIP.indexOf(k);
+  if(i>=0)SLIP.splice(i,1); else SLIP.push(k);
+  saveSlip();
+}
+function legOf(k){
+  const [id,stat,side]=k.split("|");
+  const p=P[+id]; if(!p||!D.calib[stat])return null;
+  const q=(p.book&&p.book[stat])?p.book[stat]:null;
+  const mu=p.mu[stat], c=D.calib[stat];
+  const line=q?q.line:p.line[stat];
+  const po=pOver(mu,c,line), push=pPush(mu,c,line);
+  const model=side==="over"?po:1-po-push;
+  const odds=q?a2d(side==="over"?q.over:q.under):p2d(model);
+  return {k,p,stat,side,line,mu,model,odds,book:q?(side==="over"?q.over_book
+    :q.under_book):null,quoted:!!q};
+}
+/* Normal scores, so what goes into the copula is the correlation of the
+   latent normals it assumes -- not the correlation of two skewed counts,
+   which is not the same number. */
+function normalScores(v){
+  const n=v.length;
+  const idx=v.map((x,i)=>i).sort((a,b)=>v[a]-v[b]);
+  const r=new Array(n);
+  let i=0;
+  while(i<n){
+    let j=i; while(j+1<n&&v[idx[j+1]]===v[idx[i]])j++;
+    const avg=(i+j)/2+1;                 // average rank over the tie
+    for(let k=i;k<=j;k++)r[idx[k]]=avg;
+    i=j+1;
+  }
+  return r.map(x=>nppf((x-0.5)/n));
+}
+const RHO_K=6;                            // games of shrinkage
+function pairRho(a,b){
+  if(a.p.id===b.p.id&&a.stat===b.stat)return {rho:1,n:0};
+  const A={},B={};
+  (D.recent[a.p.id]||[]).forEach(g=>{A[g.d]=actual(g,a.stat);});
+  (D.recent[b.p.id]||[]).forEach(g=>{B[g.d]=actual(g,b.stat);});
+  const xs=[],ys=[];
+  for(const d in A)if(d in B){xs.push(A[d]);ys.push(B[d]);}
+  const n=xs.length;
+  if(n<5)return {rho:0,n};
+  const zx=normalScores(xs), zy=normalScores(ys);
+  let sxy=0,sxx=0,syy=0;
+  const mx=zx.reduce((s,v)=>s+v,0)/n, my=zy.reduce((s,v)=>s+v,0)/n;
+  for(let i=0;i<n;i++){
+    const dx=zx[i]-mx, dy=zy[i]-my;
+    sxy+=dx*dy; sxx+=dx*dx; syy+=dy*dy;
+  }
+  if(sxx<=0||syy<=0)return {rho:0,n};
+  // Shrunk towards zero by how little of it there is: twenty games is a
+  // noisy place to read a correlation from, and five is no place at all.
+  const r=(sxy/Math.sqrt(sxx*syy))*(n/(n+RHO_K));
+  return {rho:Math.max(-0.95,Math.min(0.95,r)),n};
+}
+function slipMatrix(legs){
+  const n=legs.length, C=[], pairs=[];
+  for(let i=0;i<n;i++)C.push(new Array(n).fill(0));
+  for(let i=0;i<n;i++)C[i][i]=1;
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){
+    const {rho,n:m}=pairRho(legs[i],legs[j]);
+    // A leg on the under lands when the number is small, so its latent
+    // runs the other way and the sign of the correlation flips with it.
+    const s=(legs[i].side==="over"?1:-1)*(legs[j].side==="over"?1:-1);
+    C[i][j]=C[j][i]=rho*s;
+    pairs.push({i,j,rho:rho*s,n:m});
+  }
+  return {C,pairs};
+}
+function warnings(legs,pairs){
+  const w=[];
+  const byPlayer={},byGame={};
+  legs.forEach((l,i)=>{
+    (byPlayer[l.p.id]=byPlayer[l.p.id]||[]).push(i);
+    (byGame[l.p.gid]=byGame[l.p.gid]||[]).push(i);
+  });
+  for(const id in byPlayer){
+    const ix=byPlayer[id]; if(ix.length<2)continue;
+    const p=legs[ix[0]].p;
+    const rs=pairs.filter(q=>ix.indexOf(q.i)>=0&&ix.indexOf(q.j)>=0);
+    const hi=rs.length?Math.max.apply(null,rs.map(q=>Math.abs(q.rho))):0;
+    // Points sit inside points+rebounds+assists; one cannot land without
+    // dragging the other, and no correlation estimate is needed to know it.
+    const ks=ix.map(i=>legs[i].stat);
+    const nest=ks.some((a,x)=>ks.some((b,y)=>x!==y&&a!==b&&
+      comboOf(b).indexOf(a)>=0));
+    // Report the measured number, including its sign. Two markets on one
+    // player are not automatically a doubled bet: in his last twenty
+    // games they may well have moved against each other, and saying so
+    // is the only reason to measure it rather than assume it.
+    const g=rs.length?Math.max.apply(null,rs.map(q=>q.rho)):0;
+    const l=rs.length?Math.min.apply(null,rs.map(q=>q.rho)):0;
+    const big=Math.abs(l)>Math.abs(g)?l:g;
+    const how=big>0.15
+      ?`they have moved together in his own game log
+        (correlation ${rho2(big)}), so this is closer to one bet than
+        ${ix.length}`
+      :(big<-0.15
+        ?`they have moved <b>against</b> each other in his own game log
+          (correlation ${rho2(big)}), which makes the parlay harder than
+          multiplying the legs suggests, not easier`
+        :`his game log shows little link between them
+          (correlation ${rho2(big)}), but they still run off the same
+          minutes, and twenty games is a thin place to measure from`);
+    w.push({cls:"bad",t:`${ix.length} legs on ${p.name}`,
+      d:nest?`one of these markets contains the other, so a good night
+        for one is a good night for both almost by definition &mdash;
+        ${how}`:how});
+  }
+  for(const g in byGame){
+    const ix=byGame[g]; if(ix.length<2)continue;
+    const ids=new Set(ix.map(i=>legs[i].p.id));
+    if(ids.size<2)continue;             // already said, as one player
+    const teams=new Set(ix.map(i=>legs[i].p.team));
+    w.push({cls:"warn",
+      t:`${ix.length} legs in ${legs[ix[0]].p.team} ${legs[ix[0]].p.home?"vs":"@"} ${legs[ix[0]].p.opp}`,
+      d:teams.size===1
+        ?`team-mates: their minutes and their shots come out of the same
+          pool, so one doing well can mean the other doing less`
+        :`one game: the pace that makes one of these land makes the other
+          more likely too`});
+  }
+  return w;
+}
+function drawSlip(){
+  saveSlip();
+  const box=$("#slipbody");
+  const legs=SLIP.map(legOf).filter(Boolean);
+  if(!legs.length){
+    box.innerHTML=`<div class="panel"><h3>The slip is empty</h3>
+      <div class="hint"><span>Add legs with the <b>+</b> on
+      <b>Top props</b>. What this does that a sportsbook's slip does not:
+      it measures how your legs have actually moved together in the
+      players' own game logs, and prices the parlay with that
+      correlation in it rather than multiplying the legs as though they
+      were strangers.</span></div></div>`;
+    return;
+  }
+  const {C,pairs}=slipMatrix(legs);
+  const ps=legs.map(l=>l.model);
+  const naive=ps.reduce((a,b)=>a*b,1);
+  const joint=jointProb(ps,C,40000);
+  const dec=legs.reduce((a,l)=>a*l.odds,1);
+  const payout=dec-1;                      // profit per unit staked
+  const evv=joint*payout-(1-joint);
+  const fair=p2d(joint);
+  const quoted=legs.every(l=>l.quoted);
+  const rows=legs.map(l=>`<tr>
+    <td class="l"><span class="name" data-id="${l.p.id}">${l.p.name}</span></td>
+    <td class="l"><span class="dim">${matchup(l.p)}</span></td>
+    <td class="l">${LBL[l.stat]} <b>${l.side}</b> ${l.line.toFixed(1)}</td>
+    <td class="num">${l.mu.toFixed(1)}</td>
+    <td class="num">${pct(l.model)}</td>
+    <td class="num">${fmtD(l.odds)}</td>
+    <td class="l dim">${l.book||`<span class="dim2">model price</span>`}</td>
+    <td><button class="add on" data-leg="${l.k}">&times;</button></td></tr>`).join("");
+  const ws=warnings(legs,pairs);
+  const gap=joint-naive;
+  box.innerHTML=`
+    <div class="kpis">
+      <div class="kpi"><div class="k">Model says</div>
+        <div class="v">${pct(joint)}</div>
+        <div class="c">with the legs' measured correlation</div></div>
+      <div class="kpi"><div class="k">If they were independent</div>
+        <div class="v">${pct(naive)}</div>
+        <div class="c">${Math.abs(gap)<0.0005?"same to a rounding":
+          (gap>0?`${pct(gap)} too low &mdash; these legs help each other`
+                :`${pct(-gap)} too high &mdash; these legs fight each other`)}</div></div>
+      <div class="kpi"><div class="k">Offered</div>
+        <div class="v">${fmtD(dec)}</div>
+        <div class="c">${pct(1/dec)} implied &mdash; what the book is saying</div></div>
+      <div class="kpi"><div class="k">Fair price</div>
+        <div class="v">${fmtD(fair)}</div>
+        <div class="c ${cls(evv)}">${sgn(evv)} expected per unit</div></div>
+    </div>
+    ${ws.map(w=>`<div class="note ${w.cls}"><b>${w.t}</b> &mdash; ${w.d}</div>`).join("")}
+    <div class="scroll"><table><thead><tr>
+      <th class="l">Player</th><th class="l">Match</th><th class="l">Leg</th>
+      <th>Proj</th><th>Model</th><th>Price</th><th class="l">Book</th><th></th>
+      </tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="panel"><div class="bar-row">
+      <button class="ghost" id="slipclear">Clear the slip</button>
+      <span class="dim">${legs.length} leg${legs.length===1?"":"s"}
+        ${quoted?"":"&middot; some legs have no book quoting them, so the price shown is the model's own"}</span>
+    </div>
+    <div class="hint"><span>Correlation is measured on the games these
+      players have actually played, matched by date, and shrunk towards
+      zero when there are few of them. Where two players have never
+      shared a date it reads zero, which is an absence of evidence, not
+      independence.</span></div></div>`;
+  box.querySelectorAll(".name").forEach(n=>{
+    n.onclick=()=>selectPlayerById(+n.dataset.id);});
+  box.querySelectorAll(".add").forEach(b=>{
+    b.onclick=()=>{toggleLeg(b.dataset.leg);drawSlip();};});
+  $("#slipclear").onclick=()=>{SLIP=[];saveSlip();drawSlip();};
+}
+
 /* ---------- line sheet ---------- */
 const SCOLS=[
   ["Player",0,"l",r=>`<span class="name" data-id="${r.p.id}">${r.p.name}</span>${statusPill(r.p)}`],
@@ -849,10 +1367,10 @@ const SCOLS=[
   ["Line",0,"",r=>r.line.toFixed(1)],
   ["Proj",0,"",r=>`<b>${r.mu.toFixed(2)}</b>`],
   ["Over",0,"",r=>pct(r.po)],
-  ["Fair O",0,"",r=>fmtA(p2a(r.po))],
-  ["Fair U",1,"",r=>fmtA(p2a(r.pu))],
-  ["Book",0,"",r=>r.oo?`${fmtA(r.oo)} / ${fmtA(r.uo)}`:dash],
-  ["Hold",1,"",r=>r.oo?`<span class="dim">${pct(a2p(r.oo)+a2p(r.uo)-1)}</span>`:""],
+  ["Fair O",0,"",r=>fmtD(p2d(r.po))],
+  ["Fair U",1,"",r=>fmtD(p2d(r.pu))],
+  ["Book",0,"",r=>r.oo?`${fmtD(r.oo)} / ${fmtD(r.uo)}`:dash],
+  ["Hold",1,"",r=>r.oo?`<span class="dim">${pct(d2p(r.oo)+d2p(r.uo)-1)}</span>`:""],
   ["Side",0,"",r=>r.side],
   ["Edge",0,"",r=>r.edge===null?dash:`<span class="${cls(r.edge)}">${sgn(r.edge)}</span>`],
   ["EV",0,"",r=>r.ev===null?dash:`<span class="${cls(r.ev)}">${sgn(r.ev)}</span>`],
@@ -868,11 +1386,20 @@ function priceSheet(){
     const f=ln.split(/[,;\t]+|\s{2,}/).map(s=>s.trim()).filter(Boolean);
     let parts=f.length>=3?f:ln.split(/\s+/);
     if(parts.length<3){bad.push(ln);return;}
-    const odds=[], rest=[];
-    parts.forEach(x=>{ if(/^[+-]\d{2,4}$/.test(x)) odds.push(+x); else rest.push(x); });
-    const line=parseFloat(rest.pop());
-    const stat=(rest.pop()||"").toLowerCase();
-    const p=findPlayer(rest.join(" "));
+    // Read by position, not by pattern. Once the page speaks decimal a
+    // price and a line look identical -- 1.87 and 8.5 are both just
+    // numbers -- so the only reliable anchor is the stat key: the name
+    // is everything before it, the line is the number after it, and
+    // whatever follows are the two prices.
+    const si=parts.findIndex(x=>SK.includes(x.toLowerCase()));
+    if(si<1){bad.push(ln);return;}
+    const stat=parts[si].toLowerCase();
+    const line=parseFloat(parts[si+1]);
+    // Either notation is accepted: American always carries a sign and is
+    // at least three digits, decimal never does.
+    const odds=parts.slice(si+2).map(x=>
+      /^[+-]\d{2,4}$/.test(x)?a2d(+x):+x).filter(x=>isFinite(x)&&x>1);
+    const p=findPlayer(parts.slice(0,si).join(" "));
     if(!p||!SK.includes(stat)||!isFinite(line)){bad.push(ln);return;}
     const c=D.calib[stat], mu=p.mu[stat];
     const po=pOver(mu,c,line), pu=1-po-pPush(mu,c,line);
@@ -880,10 +1407,10 @@ function priceSheet(){
       side:p.out?"ruled out":(po>0.5?"over":"under"),
       edge:null,ev:null,kelly:0,hit:null};
     if(r.oo&&r.uo&&!p.out){
-      const [nO,nU]=devig(r.oo,r.uo);
-      const eo=ev(po,r.oo), eu=ev(pu,r.uo), over=eo>=eu;
+      const [nO,nU]=devigD(r.oo,r.uo);
+      const eo=evD(po,r.oo), eu=evD(pu,r.uo), over=eo>=eu;
       r.side=over?"over":"under"; r.edge=over?po-nO:pu-nU;
-      r.ev=Math.max(eo,eu); r.kelly=over?kelly(po,r.oo):kelly(pu,r.uo);
+      r.ev=Math.max(eo,eu); r.kelly=over?kellyD(po,r.oo):kellyD(pu,r.uo);
     }
     const g=D.recent[p.id]||[];
     if(g.length){
@@ -1032,8 +1559,8 @@ function drawPlayer(){
         <div>At ${line.toFixed(1)}</div><div class="num">over ${pct(po)}
           <span class="dim">/</span> under ${pct(1-po-push)}
           ${push>0.0005?`<span class="dim">&middot; push ${pct(push)}</span>`:""}</div>
-        <div>Fair price</div><div class="num">O ${fmtA(p2a(po))}
-          <span class="dim">/</span> U ${fmtA(p2a(1-po-push))}
+        <div>Fair price</div><div class="num">O ${fmtD(p2d(po))}
+          <span class="dim">/</span> U ${fmtD(p2d(1-po-push))}
           <span class="dim">&middot; even money at ${fairLine(mu,c).toFixed(1)}</span></div>`)+`
       </div>
     </div>`);
@@ -1046,7 +1573,7 @@ function drawPlayer(){
       <td class="l">${LBL[k]}</td><td class="num">${m.toFixed(2)}</td>
       <td class="num dim">${sdOf(m,cc).toFixed(2)}</td>
       <td class="num">${L.toFixed(1)}</td><td class="num">${pct(q)}</td>
-      <td class="num dim">${fmtA(p2a(q))}</td>
+      <td class="num dim">${fmtD(p2d(q))}</td>
       <td class="num">${rankCell(p.opp,k,win,p.pos)}</td></tr>`;
   });
   if(!p.out){
@@ -1362,11 +1889,13 @@ function wireRefresh(){
 function showTab(t){
   document.querySelectorAll("nav button").forEach(b=>
     b.classList.toggle("on",b.dataset.t===t));
-  ["trends","sheet","player","method"].forEach(x=>
+  ["trends","props","slip","sheet","player","method"].forEach(x=>
     $("#t-"+x).classList.toggle("hide",x!==t));
   if(t==="method")drawMethod();
   if(t==="player")drawPlayer();
   if(t==="trends")drawTrends();
+  if(t==="props")drawProps();
+  if(t==="slip")drawSlip();
 }
 function init(){
   const m=D.meta;
@@ -1379,7 +1908,7 @@ function init(){
   $("#pstat").value="pts"; $("#tstat").value="pts";
   $("#statkeys").textContent=SK.join("  ");
   D.games.forEach(g=>{
-    [$("#tgame")].forEach(sel=>{
+    [$("#tgame"),$("#pxgame")].forEach(sel=>{
       const o=el("option","",`${g.away} @ ${g.home}`); o.value=g.gid;
       sel.append(o);
     });
@@ -1399,7 +1928,7 @@ function init(){
   $("#demo").onclick=()=>{
     const s=$("#tstat").value;
     $("#paste").value=D.players.filter(p=>p.min>=24).slice(0,15)
-      .map(p=>`${p.name}, ${s}, ${p.line[s]}, -110, -110`).join("\n");
+      .map(p=>`${p.name}, ${s}, ${p.line[s]}, 1.91, 1.91`).join("\n");
     priceSheet();
   };
   /* the typable player picker */
@@ -1432,6 +1961,13 @@ function init(){
     $("#tseason").checked=false; $("#tsig").checked=false;
     tSort="hit"; tDir=-1; drawTrends();
   };
+  ["pxgame","pxbooks","pxedge"].forEach(id=>
+    $("#"+id).addEventListener("input",drawProps));
+  $("#pxreset").onclick=()=>{
+    $("#pxgame").value=""; $("#pxbooks").value="3"; $("#pxedge").value=0;
+    drawProps();
+  };
+  saveSlip();
   wireRefresh();
   drawTrends();
 }

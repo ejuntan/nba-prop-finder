@@ -237,15 +237,16 @@ def one(r, stat, line, over_odds=None, under_odds=None, cal=None):
     print(f"    deciles  10% {q[0]}   25% {q[1]}   median {q[2]}   "
           f"75% {q[3]}   90% {q[4]}")
     pushtxt = f"   push {push:.1%}" if push > 0 else ""
-    print(f"    over  {po:6.2%}  fair {M.prob_to_american(po):+d}     "
-          f"under {pu:6.2%}  fair {M.prob_to_american(pu):+d}{pushtxt}")
+    print(f"    over  {po:6.2%}  fair {M.prob_to_decimal(po):5.2f}     "
+          f"under {pu:6.2%}  fair {M.prob_to_decimal(pu):5.2f}{pushtxt}")
     if over_odds is None:
         return None
     no, nu = M.devig(over_odds, under_odds) if under_odds is not None \
         else (M.american_to_prob(over_odds), None)
     hold = M.hold(over_odds, under_odds) if under_odds is not None else np.nan
-    print(f"    book  over {over_odds:+d}"
-          + (f"  under {under_odds:+d}   hold {hold:.2%}" if under_odds
+    print(f"    book  over {M.to_decimal(over_odds):.2f}"
+          + (f"  under {M.to_decimal(under_odds):.2f}   hold {hold:.2%}"
+             if under_odds
              is not None else ""))
     print(f"    no-vig  over {no:.2%}" + (f"   under {nu:.2%}" if nu else ""))
     rows = []
@@ -331,8 +332,8 @@ def scan(path):
                "line": line, "proj": mu, "proj_min": r.proj_min,
                "status": r.status, "play_prob": r.play_prob,
                "p_over": po, "p_under": pu,
-               "fair_over": M.prob_to_american(po),
-               "fair_under": M.prob_to_american(pu)}
+               "fair_over": round(M.prob_to_decimal(po), 3),
+               "fair_under": round(M.prob_to_decimal(pu), 3)}
         if pd.notna(oo) and pd.notna(uo):
             no, nu = M.devig(float(oo), float(uo))
             cands = [("over", po, float(oo), no), ("under", pu, float(uo), nu)]
@@ -423,7 +424,8 @@ def main():
         uo = int(a[4]) if len(a) > 4 else None
     elif mk:
         line, oo, uo = mk["line"], mk["over"], mk["under"]
-        print(f"\n  using the market: {line} at {oo:+d} / {uo:+d} "
+        print(f"\n  using the market: {line} at "
+              f"{M.to_decimal(oo):.2f} / {M.to_decimal(uo):.2f} "
               f"({mk['over_book']} / {mk['under_book']}, "
               f"{mk['n']} book{'' if mk['n'] == 1 else 's'} quoting)")
     else:

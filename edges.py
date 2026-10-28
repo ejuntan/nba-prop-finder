@@ -238,7 +238,12 @@ def main():
                   "one side of the lines, and every disagreement below "
                   "inherits that.")
 
-    cols = ["name", "team", "opp", "stat", "line", "side", "book", "odds",
+    # The stored price is American, because that is what the book quotes
+    # and what gets logged for grading. Everything read by a person is
+    # decimal, here and on the page, so the column is converted for
+    # display and nothing downstream recomputes from it.
+    d = d.assign(price=d.odds.map(M.to_decimal).round(2))
+    cols = ["name", "team", "opp", "stat", "line", "side", "book", "price",
             "proj", "model", "novig_cons", "edge_cons", "ev", "kelly",
             "n_books"]
     cons = d[d.edge_cons.notna()]

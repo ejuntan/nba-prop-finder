@@ -313,6 +313,24 @@ def prob_to_american(p):
     return -round(100 * p / (1 - p)) if p >= 0.5 else round(100 * (1 - p) / p)
 
 
+def to_decimal(o):
+    """American to decimal.
+
+    The books quote American and that is what gets stored, but every
+    table and the whole page read in decimal: a decimal price is a
+    multiplier you can apply to a stake, and its reciprocal is the
+    implied probability, which makes the devig and the EV legible
+    without a second conversion in your head. Only the display changes
+    -- nothing recomputes from the rounded number."""
+    o = float(o)
+    return 1 + o / 100 if o > 0 else 1 + 100 / -o
+
+
+def prob_to_decimal(p):
+    """The fair decimal price of a probability."""
+    return 1.0 / min(max(float(p), 1e-6), 1 - 1e-6)
+
+
 def devig(over_odds, under_odds, method="power"):
     """Strip the hold. Multiplicative splits it proportionally, which
     overtaxes the favourite; the power method is closer to how books
