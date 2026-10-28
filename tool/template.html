@@ -5,9 +5,16 @@
 <style>
 :root{
   color-scheme:dark;
-  --bg:#0e1116; --panel:#161b22; --panel2:#1c232c; --line:#2a323d;
-  --ink:#e6edf3; --dim:#8b97a6; --dim2:#5c6673;
+  /* A surface ladder, not two greys: page, card, raised, and two border
+     weights, so depth is carried by the surfaces and borders can stay
+     quiet. */
+  --bg:#0b0e13; --panel:#12171f; --panel2:#19212b;
+  --line:#232b36; --line2:#2f3a47;
+  --ink:#e8eef6; --dim:#93a0b0; --dim2:#657282;
   --good:#3fb950; --bad:#f85149; --warn:#d29922; --accent:#58a6ff;
+  --accent-soft:rgba(88,166,255,.12);
+  --r:10px; --r-sm:7px;
+  --sh:0 1px 2px rgba(0,0,0,.45);
   /* The chart's two marks are a diverging pair -- warm and cool poles
      around the line, not a verdict on which side is the good one. Both are
      validated against the dark surfaces they sit on (CVD dE 19.2,
@@ -19,22 +26,63 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
-  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
-.wrap{max-width:1400px;margin:0 auto;padding:16px 16px 56px}
-header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
-  margin-bottom:10px}
-h1{font-size:17px;margin:0;letter-spacing:-.2px;font-weight:600}
-.sub{color:var(--dim);font-size:12px}
-.sub b{color:var(--ink);font-weight:500}
-nav{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:14px;
-  overflow-x:auto}
-nav button{background:none;border:0;border-bottom:2px solid transparent;
-  color:var(--dim);padding:7px 12px;font-size:13px;cursor:pointer;
-  white-space:nowrap;font-weight:500}
-nav button.on{color:var(--ink);border-bottom-color:var(--accent)}
+  font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1400px;margin:0 auto;padding:0 20px 64px}
+
+/* masthead: what this is on the left, what it was built from on the
+   right, and nothing competing with either */
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:18px 0 14px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.mark{width:28px;height:28px;border-radius:8px;flex:none;
+  background:linear-gradient(145deg,var(--accent),#2b6cb8);
+  display:grid;place-items:center;font-size:12px;font-weight:700;
+  color:#fff;letter-spacing:-.4px;box-shadow:var(--sh)}
+h1{font-size:16px;margin:0;letter-spacing:-.2px;font-weight:650;
+  line-height:1.2}
+h1 small{display:block;font-size:11.5px;color:var(--dim2);font-weight:400;
+  letter-spacing:0}
+.sub{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;
+  color:var(--dim)}
+/* one fact per chip, so the header is scannable instead of a sentence */
+.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;
+  border:1px solid var(--line);border-radius:999px;background:var(--panel);
+  white-space:nowrap}
+.chip b{color:var(--ink);font-weight:600;
+  font-family:var(--mono);font-variant-numeric:tabular-nums}
+.chip.warn{border-color:#5a4a1e;color:var(--warn)}
+.chip.warn b{color:var(--warn)}
+
+/* the night at a glance, before any table */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+  margin-bottom:16px}
+.kpi{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r);padding:12px 14px;box-shadow:var(--sh)}
+.kpi .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--dim2);font-weight:600;margin-bottom:5px}
+.kpi .v{font-size:21px;font-weight:650;letter-spacing:-.4px;
+  font-family:var(--mono);font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .v small{font-size:12px;font-weight:500;color:var(--dim);
+  letter-spacing:0;margin-left:3px}
+.kpi .c{font-size:11.5px;color:var(--dim);margin-top:4px}
+
+nav{display:flex;gap:4px;margin-bottom:16px;overflow-x:auto;
+  padding:3px;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r);position:sticky;top:0;z-index:25;
+  scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{background:none;border:0;border-radius:var(--r-sm);
+  color:var(--dim);padding:7px 14px;font-size:13px;cursor:pointer;
+  white-space:nowrap;font-weight:550;transition:background .12s,color .12s}
+nav button.on{color:var(--ink);background:var(--panel2);
+  box-shadow:inset 0 0 0 1px var(--line2)}
 nav button:hover{color:var(--ink)}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;
-  padding:12px 14px;margin-bottom:12px}
+.panel{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r);padding:14px 16px;margin-bottom:12px;
+  box-shadow:var(--sh)}
+footer{margin-top:28px;padding-top:14px;border-top:1px solid var(--line);
+  color:var(--dim2);font-size:11.5px;display:flex;gap:10px;flex-wrap:wrap}
 .bar-row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;
   font-size:12px;color:var(--dim)}
 .bar-row label{display:flex;gap:5px;align-items:center}
@@ -50,11 +98,18 @@ button.ghost{background:none;color:var(--dim);border:1px solid var(--line);
   border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer}
 button.ghost:hover{color:var(--ink)}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line);
-  white-space:nowrap}
-th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;
-  letter-spacing:.3px;background:var(--panel);user-select:none}
-.scroll th{position:sticky;top:0;cursor:pointer}
+th,td{padding:7px 10px;text-align:right;
+  border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--dim2);font-weight:600;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.5px;background:var(--panel2);user-select:none;
+  border-bottom:1px solid var(--line2)}
+tbody tr{transition:background .1s}
+tbody tr:hover{background:var(--panel2)}
+tbody tr:last-child td{border-bottom:0}
+/* the name column anchors every row, so it reads first and stays put */
+td.l:first-child{font-weight:550}
+.scroll th{position:sticky;top:0;cursor:pointer;z-index:2}
+.scroll th:hover{color:var(--dim)}
 .scroll th:hover{color:var(--ink)}
 th.l,td.l{text-align:left}
 tbody tr:hover{background:var(--panel2)}
@@ -67,6 +122,7 @@ tbody tr:last-child td{border-bottom:0}
 .pill.out{color:var(--bad);border-color:var(--bad)}
 .pill.q{color:var(--warn);border-color:var(--warn)}
 .scroll{max-height:74vh;overflow:auto;border:1px solid var(--line);
+  box-shadow:var(--sh);
   border-radius:8px;background:var(--panel)}
 .scroll table{font-size:12.5px}
 tr.outrow td{color:var(--dim2)}
@@ -166,7 +222,8 @@ h3 .dim{text-transform:none;letter-spacing:0;font-weight:400}
 /* refresh control: a button in the header, a progress panel under the nav */
 #refresh{display:flex;gap:8px;align-items:center;margin-left:auto;
   font-size:12px;color:var(--dim)}
-#refresh label{display:flex;gap:4px;align-items:center;cursor:pointer}
+#refresh label{display:flex;gap:4px;align-items:center;cursor:pointer;
+  white-space:nowrap}
 #rf[disabled]{opacity:.45;cursor:not-allowed}
 /* .hide is a bare class and these are an id and a descendant of one, so
    both outrank it and the control stayed on screen when it was told to
@@ -182,18 +239,34 @@ h3 .dim{text-transform:none;letter-spacing:0;font-weight:400}
   border:2px solid var(--line);border-top-color:var(--accent);
   animation:sp .7s linear infinite;vertical-align:-1px;margin-right:4px}
 @keyframes sp{to{transform:rotate(360deg)}}
+@media(max-width:900px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+}
 @media(max-width:700px){
   #refresh{margin-left:0}
-  .wrap{padding:12px 10px 44px}
+  .wrap{padding:0 14px 44px}
+  header{padding:14px 0 10px}
+  .brand{margin-right:0;width:100%}
   .plot{height:110px}
   .xc{font-size:9px}
-  th,td{padding:4px 5px}
+  th,td{padding:6px 7px}
+  .kpi{padding:10px 12px}
+  .kpi .v{font-size:18px}
   .combo input{width:160px}
+  /* a toolbar of eight controls is a wall on a phone; let it scroll as
+     one row rather than wrap into six. */
+  .bar-row{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;
+    scrollbar-width:none}
+  .bar-row::-webkit-scrollbar{display:none}
+  .bar-row>*{flex:none}
 }
 </style>
 <div class="wrap">
 <header>
-  <h1>NBA Prop Research</h1>
+  <div class="brand">
+    <div class="mark">NP</div>
+    <h1>NBA Prop Research<small>projections, hit rates and market lines</small></h1>
+  </div>
   <div class="sub" id="sub"></div>
   <div id="refresh">
     <button class="ghost" id="rf">Refresh</button>
@@ -202,9 +275,9 @@ h3 .dim{text-transform:none;letter-spacing:0;font-weight:400}
     <span class="dim2" id="rfmsg"></span>
   </div>
 </header>
+<div class="kpis" id="kpis"></div>
 <nav>
   <button data-t="trends" class="on">Trends</button>
-  <button data-t="board">Board</button>
   <button data-t="sheet">Sheet</button>
   <button data-t="player">Player</button>
   <button data-t="method">Method</button>
@@ -271,42 +344,6 @@ h3 .dim{text-transform:none;letter-spacing:0;font-weight:400}
   <div class="scroll"><table id="tt"></table></div>
 </section>
 
-<section id="t-board" class="hide">
-  <div class="panel">
-    <div class="bar-row">
-      <select id="stat"></select>
-      <select id="game"><option value="">All games</option></select>
-      <label>Min <input type="number" id="minmin" value="15" step="1"></label>
-      <label>Odds <input type="number" id="oo" value="-110" step="5">
-        <input type="number" id="uo" value="-110" step="5"></label>
-      <label><input type="checkbox" id="onlyedge"> +EV only</label>
-      <label><input type="checkbox" id="onlybook"> Priced only</label>
-      <label><input type="checkbox" id="showout" checked> Ruled out</label>
-      <label><input type="checkbox" id="more"> More columns</label>
-      <button class="ghost" id="reset">Reset</button>
-    </div>
-    <div class="hint"><span id="boardhint">Type a book's line to price it
-      &mdash; edge and EV stay blank until you do.</span>
-      <span class="more" data-fold="b1">why</span></div>
-    <div class="longform hide" id="f-b1">
-      <p>Where a book is quoting, the <b>Line</b> is theirs and the prices
-      are theirs, and <b>Mkt</b> is the no-vig probability of the books on
-      that number &mdash; the median across them when three or more are
-      quoting, which is a far better estimate of the truth than any single
-      book. Edge is the model's probability minus that. Where nothing is
-      quoting, the line falls back to the model's own even-money number,
-      which is not a price anyone is offering, so edge and EV stay blank
-      until you type a real one.</p>
-      <p><b>Price</b> and <b>Book</b>, under More columns, are the best
-      price being offered on the side the model likes, and who is offering
-      it. The line shown is the one most books are on.</p>
-      <p>Every price is conditional on the player taking the floor.
-      Availability is reported, never multiplied in: an ungraded prop is a
-      refund, not a loss.</p>
-    </div>
-  </div>
-  <div class="scroll"><table id="bt"></table></div>
-</section>
 
 <section id="t-sheet" class="hide">
   <div class="panel">
@@ -316,6 +353,7 @@ tatum, reb, 8.5"></textarea>
     <div class="bar-row" style="margin-top:8px">
       <button class="go" id="run">Price them</button>
       <button class="ghost" id="demo">Fill from tonight</button>
+      <label><input type="checkbox" id="smore"> More columns</label>
       <span class="dim" id="pastemsg"></span>
     </div>
     <div class="hint"><span>One per line:
@@ -352,6 +390,8 @@ tatum, reb, 8.5"></textarea>
 </section>
 
 <section id="t-method" class="hide"><div class="panel" id="method"></div></section>
+
+<footer id="foot"></footer>
 </div>
 <script>
 const D = /*DATA*/null/*DATA*/;
@@ -533,6 +573,9 @@ function foldBtn(id,label,open){
 const DEF=D.defense;
 const NTEAMS=DEF.n||30;
 function defOf(team,win){ const t=DEF.teams[team]; return t?(t[win]||null):null; }
+/* Which defensive window the page is reading. The selector lives on the
+   Player tab; the sheet's Opp D column follows it too. */
+function defWindow(){ return $("#pwin").value||(DEF.windows[0]||{}).key||"last10"; }
 /* An over bettor wants a soft defence, so a high rank is the good news. */
 function rankCls(rank){ return rank>=NTEAMS-7?"good":(rank<=8?"bad":"dim"); }
 function ord(n){
@@ -608,6 +651,56 @@ function pick(p){
 function selectPlayerById(id){
   const p=P[id]; if(!p) return;
   showTab("player"); pick(p);
+}
+
+/* ---------- the head of the page ---------- */
+/* Four facts, four tiles: which night, who is on it, whether anyone is
+   quoting it, and how the model has scored out of sample. Each one is a
+   number with the thing that qualifies it underneath, because a number
+   on its own invites a reader to assume the best about it. */
+const DATEF=d=>{
+  const [y,mo,da]=d.split("-").map(Number);
+  return new Date(Date.UTC(y,mo-1,da)).toLocaleDateString("en-GB",
+    {weekday:"short",day:"numeric",month:"short",timeZone:"UTC"});
+};
+function drawHead(){
+  const m=D.meta, s=D.scorecard;
+  const out=D.players.filter(p=>p.out).length;
+  const live=D.players.length-out;
+  // The slate is the next game day, so a date behind today in the east
+  // is a board built for a night that has already been played.
+  const et=new Date().toLocaleDateString("en-CA",
+                                         {timeZone:"America/New_York"});
+  const stale=m.slate<et;
+  $("#sub").innerHTML=
+    `<span class="chip${stale?" warn":""}">${stale?"stale":"slate"}
+       <b>${DATEF(m.slate)}</b></span>`
+    +`<span class="chip">built <b>${m.built.replace(" ","&nbsp;")}</b></span>`
+    +(MODE==="live"?`<span class="chip">rebuilt nightly</span>`:"");
+
+  const books=m.book?m.book.books.length:0;
+  const skill=s?100*(1-s.brier/s.brier_base):null;
+  const tiles=[
+    ["Tonight", m.games, "games",
+     `${DATEF(m.slate)}${stale?" &mdash; already played":""}`],
+    ["Players priced", live, "",
+     out?`${out} more ruled out, kept on the board`:"nobody ruled out"],
+    ["Market", m.book?m.book.props:"&mdash;", m.book?"markets":"",
+     m.book?`quoted by ${books} book${books===1?"":"s"}`
+           :"no lines fetched for this slate"],
+    ["Model skill", skill===null?"&mdash;":`+${skill.toFixed(0)}%`, "",
+     s?`Brier ${s.brier} against ${s.brier_base} for the base rate`
+      :"no scorecard yet"],
+  ];
+  $("#kpis").innerHTML=tiles.map(([k,v,u,c])=>
+    `<div class="kpi"><div class="k">${k}</div>
+     <div class="v">${v}${u?` <small>${u}</small>`:""}</div>
+     <div class="c">${c}</div></div>`).join("");
+
+  $("#foot").innerHTML=
+    `<span>${m.source}${m.book?", prices from The Odds API":""}.</span>`
+    +`<span>Built ${m.built}.</span>`
+    +`<span>Projections are the model's own and nothing here is advice.</span>`;
 }
 
 /* ---------- trends ---------- */
@@ -748,121 +841,6 @@ function drawTrends(){
   });
 }
 
-/* ---------- board ---------- */
-const lines={};            // `${id}|${stat}` -> typed line
-let sortBy="mu", sortDir=-1;
-function boardRows(){
-  const stat=$("#stat").value, gid=$("#game").value, mm=+$("#minmin").value||0;
-  const oo=+$("#oo").value, uo=+$("#uo").value, c=D.calib[stat];
-  const [nvO,nvU]=devig(oo,uo);
-  const showOut=$("#showout").checked;
-  return D.players.filter(p=>(p.out?showOut&&p.base_min>=mm:p.min>=mm)
-      && (!gid||p.gid==gid)).map(p=>{
-    const mu=p.mu[stat], key=p.id+"|"+stat;
-    const typed=key in lines;
-    // A real quote supplies its own line and prices; a typed line
-    // overrides it and falls back to the odds in the toolbar. Edge is
-    // only meaningful against a number somebody is actually offering.
-    const q=(!typed&&p.book&&p.book[stat])?p.book[stat]:null;
-    const line=typed?lines[key]:(q?q.line:p.line[stat]);
-    const bo=q?q.over:oo, bu=q?q.under:uo;
-    const po=pOver(mu,c,line), pu=1-po-pPush(mu,c,line);
-    const eo=ev(po,bo), eu=ev(pu,bu);
-    const over=eo>=eu;
-    // Measured against the consensus of the books quoting this number
-    // where there is one, and against this book's own devig otherwise.
-    let mo,mu_;
-    if(q&&q.cons!=null){ mo=q.cons; mu_=1-q.cons; }
-    else { const dv=devig(bo,bu); mo=dv[0]; mu_=dv[1]; }
-    const priced=(typed||q)&&!p.out;
-    return {p,stat,mu,line,po,pu,sd:sdOf(mu,c),typed:priced,q,bo,bu,
-      mkt:priced?mo:null,
-      side:priced?(over?"over":"under"):null,
-      edge:priced?(over?po-mo:pu-mu_):null,
-      ev:priced?Math.max(eo,eu):null,
-      kelly:priced?(over?kelly(po,bo):kelly(pu,bu)):0};
-  });
-}
-/* [key, label, extra?, align, render] -- extra columns are off by default. */
-const BCOLS=[
-  ["name","Player",0,"l",r=>`<span class="name" data-id="${r.p.id}">${r.p.name}</span>${statusPill(r.p)}${thinPill(r.p)}`],
-  ["team","Match",0,"l",r=>`<span class="dim">${matchup(r.p)}</span>`],
-  ["pos","Pos",0,"",r=>`<span class="dim">${r.p.pos||"?"}</span>`],
-  // A ruled-out player shows what he normally plays, not what the budget
-  // would have given him, and nothing downstream of it is a price.
-  ["min","Min",0,"",r=>r.p.out?`<span title="his own recent minutes">${r.p.base_min.toFixed(1)}</span>`
-    :r.p.min.toFixed(1)],
-  ["mu","Proj",0,"",r=>r.p.out?dash:`<b>${r.mu.toFixed(2)}</b>`],
-  ["sd","SD",1,"",r=>r.p.out?dash:`<span class="dim">${r.sd.toFixed(2)}</span>`],
-  ["model","Model",1,"",r=>r.p.out?dash:`<span class="dim">${r.p.line[r.stat].toFixed(1)}</span>`],
-  ["line","Line",0,"",r=>r.p.out?dash
-    :`<input type="number" step="0.5" class="ln" data-k="${r.p.id}|${r.stat}" value="${r.line}"${r.q?' title="the market\'s line"':''}>`],
-  ["po","Over",0,"",r=>r.p.out?dash:pct(r.po)],
-  // What the market says, beside what the model says.
-  ["mkt","Mkt",0,"",r=>r.mkt===null?dash
-    :`<span class="dim" title="${r.q?(r.q.cons!=null?r.q.n+" books, no-vig consensus":"one book, devigged"):"your toolbar odds, devigged"}">${pct(r.mkt)}</span>`],
-  ["fo","Fair O",1,"",r=>r.p.out?dash:`<span class="dim">${fmtA(p2a(r.po))}</span>`],
-  ["fu","Fair U",1,"",r=>r.p.out?dash:`<span class="dim">${fmtA(p2a(r.pu))}</span>`],
-  ["side","Side",1,"",r=>r.side||dash],
-  ["edge","Edge",0,"",r=>r.edge===null?dash
-    :`<span class="${cls(r.edge)}">${sgn(r.edge)}</span>`],
-  ["ev","EV",0,"",r=>r.ev===null?dash
-    :`<span class="${cls(r.ev)}">${sgn(r.ev)}</span>`],
-  ["kelly","Kelly",1,"",r=>r.kelly>0?pct(r.kelly):dash],
-  ["price","Price",1,"",r=>r.q?`${fmtA(r.side==="under"?r.bu:r.bo)}`:dash],
-  ["book","Book",1,"l",r=>r.q
-    ?`<span class="dim">${r.side==="under"?r.q.under_book:r.q.over_book}`+
-     `${r.q.n>1?` <span class="dim2">+${r.q.n-1}</span>`:""}</span>`:dash],
-  ["play","Avail",1,"",r=>r.p.out?`<span class="bad">out</span>`
-    :(r.p.play<1
-      ?`<span class="${r.p.play<0.7?"warn":"dim"}">${(100*r.p.play).toFixed(0)}%</span>`
-      :`<span class="dim2">100%</span>`)],
-  ["pace","Pace",1,"",r=>`<span class="dim">${sgn(r.p.pace-1)}</span>`],
-  // Ranked against this player's own position: a team can be middling
-  // overall and the softest in the league against centres.
-  ["oppd","Opp D",0,"",r=>rankCell(r.p.opp,r.stat,defWindow(),r.p.pos)],
-];
-function defWindow(){ return $("#pwin").value||(DEF.windows[0]||{}).key||"last10"; }
-function drawBoard(){
-  let rows=boardRows();
-  if($("#onlybook").checked) rows=rows.filter(r=>r.q);
-  if($("#onlyedge").checked) rows=rows.filter(r=>r.ev!==null&&r.ev>0);
-  const showAll=$("#more").checked;
-  const cols=BCOLS.filter(c=>showAll||!c[2]);
-  const get=r=>({name:r.p.name,team:r.p.team,min:r.p.min,mu:r.mu,sd:r.sd,
-    model:r.p.line[r.stat],line:r.line,po:r.po,fo:r.po,fu:r.pu,
-    side:r.side||"",edge:r.edge===null?-9:r.edge,ev:r.ev===null?-9:r.ev,
-    kelly:r.kelly,play:r.p.play,pace:r.p.pace,
-    pos:r.p.pos||"", mkt:r.mkt===null?-9:r.mkt,
-    price:r.q?(r.side==="under"?r.bu:r.bo):-9999,
-    book:r.q?(r.side==="under"?r.q.under_book:r.q.over_book):"",
-    oppd:(allowedFor(r.p.opp,r.stat,defWindow(),r.p.pos)||[0,0])[1]}[sortBy]);
-  rows.sort((a,b)=>{const x=get(a),y=get(b);
-    return (typeof x==="string"?x.localeCompare(y):x-y)*sortDir;});
-  const t=$("#bt"); t.innerHTML="";
-  const head=el("thead"), tr=el("tr");
-  cols.forEach(([k,l,x,c])=>{
-    const th=el("th",c,l+(sortBy===k?(sortDir>0?" ↑":" ↓"):""));
-    th.onclick=()=>{if(sortBy===k)sortDir*=-1;else{sortBy=k;sortDir=-1;}drawBoard();};
-    tr.append(th);
-  });
-  head.append(tr); t.append(head);
-  const tb=el("tbody");
-  rows.forEach(r=>{
-    const row=el("tr");
-    if(r.p.out) row.className="outrow";
-    cols.forEach(([k,l,x,c,f])=>row.append(el("td",(c||"")+" num",f(r))));
-    tb.append(row);
-  });
-  t.append(tb);
-  t.querySelectorAll("input.ln").forEach(i=>{
-    i.onchange=()=>{lines[i.dataset.k]=+i.value;drawBoard();};
-  });
-  t.querySelectorAll(".name").forEach(n=>{
-    n.onclick=()=>selectPlayerById(+n.dataset.id);
-  });
-}
-
 /* ---------- line sheet ---------- */
 const SCOLS=[
   ["Player",0,"l",r=>`<span class="name" data-id="${r.p.id}">${r.p.name}</span>${statusPill(r.p)}`],
@@ -915,7 +893,7 @@ function priceSheet(){
     out.push(r);
   });
   out.sort((a,b)=>(b.ev===null?-9:b.ev)-(a.ev===null?-9:a.ev));
-  const cols=SCOLS.filter(c=>$("#more").checked||!c[1]);
+  const cols=SCOLS.filter(c=>$("#smore").checked||!c[1]);
   const t=$("#st"); t.innerHTML="";
   const head=el("thead"), tr=el("tr");
   cols.forEach(([l,x,c])=>tr.append(el("th",c,l)));
@@ -1384,7 +1362,7 @@ function wireRefresh(){
 function showTab(t){
   document.querySelectorAll("nav button").forEach(b=>
     b.classList.toggle("on",b.dataset.t===t));
-  ["trends","board","sheet","player","method"].forEach(x=>
+  ["trends","sheet","player","method"].forEach(x=>
     $("#t-"+x).classList.toggle("hide",x!==t));
   if(t==="method")drawMethod();
   if(t==="player")drawPlayer();
@@ -1392,38 +1370,16 @@ function showTab(t){
 }
 function init(){
   const m=D.meta;
-  const nOut=D.players.filter(p=>p.out).length;
-  $("#sub").innerHTML=`<b>${m.slate}</b> &middot; ${m.games} games &middot;
-    ${m.players-nOut} players${nOut?` &middot; ${nOut} ruled out`:""}
-    ${m.book?` &middot; <b>${m.book.props} markets priced</b> by
-      ${m.book.books.length} book${m.book.books.length===1?"":"s"}`:""}
-    &middot; built ${m.built}`;
-  if(MODE==="live")
-    $("#sub").insertAdjacentHTML("beforeend",
-      ` &middot; <span class="dim2">rebuilt nightly</span>`);
-  // The slate is the next game day, so a date behind today in Eastern
-  // means the board was built for a night that has already been played.
-  const etNow=new Date().toLocaleDateString("en-CA",
-                                            {timeZone:"America/New_York"});
-  if(m.slate<etNow)
-    $("#sub").insertAdjacentHTML("beforeend",
-      ` &middot; <span class="warn">built for ${m.slate}; `
-      +`it is ${etNow} in the east</span>`);
+  drawHead();
   SK.forEach(k=>{
-    ["#stat","#pstat","#tstat"].forEach(sel=>{
+    ["#pstat","#tstat"].forEach(sel=>{
       const o=el("option","",LBL[k]); o.value=k; $(sel).append(o);
     });
   });
-  $("#stat").value="pts"; $("#pstat").value="pts"; $("#tstat").value="pts";
+  $("#pstat").value="pts"; $("#tstat").value="pts";
   $("#statkeys").textContent=SK.join("  ");
-  if(m.book){
-    $("#boardhint").innerHTML=`Lines are real, from
-      ${m.book.books.length} book${m.book.books.length===1?"":"s"}.
-      <b>Mkt</b> is what they say, <b>Over</b> what the model says, and the
-      gap is the edge. Type over a line to price a different number.`;
-  }
   D.games.forEach(g=>{
-    [$("#game"),$("#tgame")].forEach(sel=>{
+    [$("#tgame")].forEach(sel=>{
       const o=el("option","",`${g.away} @ ${g.home}`); o.value=g.gid;
       sel.append(o);
     });
@@ -1436,17 +1392,12 @@ function init(){
     b.onclick=()=>showTab(b.dataset.t));
   document.querySelectorAll(".hint .more").forEach(b=>
     b.onclick=()=>fold(b.dataset.fold));
-  ["stat","game","minmin","oo","uo","onlyedge","onlybook","more","showout"]
-    .forEach(id=>
-    $("#"+id).addEventListener("input",drawBoard));
-  $("#reset").onclick=()=>{for(const k in lines)delete lines[k];
-    sortBy="mu";sortDir=-1;$("#onlyedge").checked=false;
-    $("#showout").checked=true;$("#onlybook").checked=false;drawBoard();};
   $("#run").onclick=priceSheet;
+  $("#smore").addEventListener("input",()=>{if($("#st").rows.length)priceSheet();});
   $("#paste").addEventListener("keydown",e=>{
     if((e.metaKey||e.ctrlKey)&&e.key==="Enter")priceSheet();});
   $("#demo").onclick=()=>{
-    const s=$("#stat").value;
+    const s=$("#tstat").value;
     $("#paste").value=D.players.filter(p=>p.min>=24).slice(0,15)
       .map(p=>`${p.name}, ${s}, ${p.line[s]}, -110, -110`).join("\n");
     priceSheet();
@@ -1471,7 +1422,6 @@ function init(){
   });
   ["pstat","pline","plast","pwin"].forEach(id=>
     $("#"+id).addEventListener("input",()=>{
-      if(id==="pwin")drawBoard();
       drawPlayer();
     }));
   ["tstat","tgame","tlast","tsplit","tminmin","tseason","tsig"].forEach(id=>
@@ -1483,7 +1433,6 @@ function init(){
     tSort="hit"; tDir=-1; drawTrends();
   };
   wireRefresh();
-  drawBoard();
   drawTrends();
 }
 init();
