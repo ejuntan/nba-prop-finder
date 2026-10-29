@@ -60,6 +60,15 @@ def push(meta):
     else:
         print("  nothing changed")
         return 0
+    # Two schedulers can publish the same repo -- the laptop and the
+    # nightly workflow -- and whichever is second would be rejected as a
+    # non-fast-forward. Rebasing first makes the later board win cleanly
+    # instead of needing a hand.
+    if git("remote").stdout.strip():
+        r = git("pull", "--rebase", "--autostash")
+        if r.returncode:
+            print("  could not rebase on the remote:",
+                  (r.stdout + r.stderr).strip()[:200])
     if not git("remote").stdout.strip():
         print("  committed, but there is no remote to push to yet. "
               "Add one and this becomes the deploy:\n"

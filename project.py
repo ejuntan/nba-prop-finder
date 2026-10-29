@@ -75,11 +75,28 @@ LINES_HINT = {"pts": 2.0, "reb": 1.0, "ast": 1.0, "pra": 3.0, "fg3m": 0.5,
 
 
 def next_slate(con, when=None):
-    """The date to price. Default: the next day that has games."""
+    """The date to price: the next day with a game still to tip.
+
+    Not simply the next date on or after today. A run late in the
+    evening -- a scheduled job that fired on wake, say -- would otherwise
+    price a slate whose games had already been played, since those games
+    still carry today's Eastern date. What makes a slate the next one is
+    that something on it has not started, so that is what is asked.
+    """
     if when:
         return when
     # Eastern, to match the dates in the database: at 11pm on the west
     # coast the machine's own date is already tomorrow for half the year.
+    now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
+    row = con.execute(
+        "SELECT MIN(date) FROM games WHERE date >= ? AND season_type IN (2,3,5)"
+        "  AND state NOT IN ('post','in') AND tipoff > ?",
+        (et_today().isoformat(), now)).fetchone()
+    if row and row[0]:
+        return row[0]
+    # Nothing left to tip that we know of: fall back to the old answer
+    # rather than returning nothing, and let the caller report an empty
+    # slate if that is what it is.
     row = con.execute(
         "SELECT MIN(date) FROM games WHERE date >= ? AND season_type IN (2,3,5)",
         (et_today().isoformat(),)).fetchone()

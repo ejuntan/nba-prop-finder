@@ -10,9 +10,14 @@
 # downstream ran on stale inputs.
 set -euo pipefail
 cd "$(dirname "$0")"
-PY=./.venv/bin/python
+# Overridable, so the same script runs in a checkout with no venv --
+# a CI runner installs into the system interpreter.
+PY="${PY:-./.venv/bin/python}"
 JSC=/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc
 LOG=data/daily.log
+# A fresh checkout has neither: both hold only generated files, so git
+# does not carry them, and the first stage to write one would fail.
+mkdir -p data out
 
 # One run at a time. The chain rewrites the same SQLite files and the same
 # index.html, so two overlapping runs -- the scheduled one and a click of
