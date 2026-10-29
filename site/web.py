@@ -82,6 +82,24 @@ def meta():
         return {}
 
 
+def _matches(header, tag):
+    """Does an If-None-Match header cover this tag?
+
+    Not a string comparison. A proxy in front of this -- Render's, for
+    one -- may hand the client a weak validator, and the client sends
+    back exactly what it was given: W/"abc" against a tag of "abc" is a
+    match, and a browser may offer several tags at once."""
+    if not header:
+        return False
+    for t in header.split(","):
+        t = t.strip()
+        if t.startswith("W/"):
+            t = t[2:]
+        if t == tag or t == "*":
+            return True
+    return False
+
+
 class H(BaseHTTPRequestHandler):
     server_version = "nba-props"
     protocol_version = "HTTP/1.1"
@@ -151,7 +169,7 @@ class H(BaseHTTPRequestHandler):
             # changed costs a 304 instead of a quarter of a megabyte --
             # and a reload that does find a new board always gets it.
             tag = '"%x-%x"' % (int(_stamp[0]), int(_stamp[1]))
-            if self.headers.get("If-None-Match") == tag:
+            if _matches(self.headers.get("If-None-Match"), tag):
                 self.send_response(304)
                 self.send_header("ETag", tag)
                 self.send_header("Cache-Control", "no-cache")
