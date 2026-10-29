@@ -1764,6 +1764,15 @@ function wireRefresh(){
         const m=await (await fetch("/api/meta",{cache:"no-store"})).json();
         if(!m||!m.built||m.built===D.meta.built)return;
         told=true;
+        // Take the reload when nothing would be lost by it, and offer it
+        // when something would. Typing in a field, a sheet with text in
+        // it, or a slip being built are all work in progress; yanking
+        // the page out from under any of them to show a fresher number
+        // is not an improvement.
+        const a=document.activeElement;
+        const busy=(a&&["INPUT","TEXTAREA","SELECT"].includes(a.tagName))
+          ||$("#paste").value.trim()||SLIP.length;
+        if(!busy)return location.reload();
         const t=el("div","toast",
           `<span>A newer board was published <b>${m.built}</b>`
           +`${m.slate!==D.meta.slate?` &mdash; slate ${m.slate}`:""}</span>`);

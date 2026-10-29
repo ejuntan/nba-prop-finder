@@ -38,18 +38,29 @@ PORT = int(os.environ.get("PORT", "8000"))
 # behind one password -- any username, so there is no account to manage.
 PASSWORD = os.environ.get("SITE_PASSWORD", "")
 
-_page = None          # the spliced page, built once and kept
+_page = None          # the spliced page
+_stamp = None         # the file state it was spliced from
+
+
+def _mtimes():
+    return tuple(os.path.getmtime(f) for f in (TPL, DATA))
 
 
 def page():
-    """Template plus data, assembled once per process.
+    """Template plus data, assembled from whatever is on disk now.
 
-    The two are stored apart on purpose: the template is 50 KB and
-    changes when the tool changes, the data is half a megabyte and
-    changes every night. Committing the assembled page nightly would put
-    a 650 KB blob in the history every day for no reason."""
-    global _page
-    if _page is None:
+    The two are stored apart on purpose: the template is 90 KB and
+    changes when the tool changes, the data is a quarter of a megabyte
+    and changes every night. Committing the assembled page nightly would
+    put a blob in the history every day for no reason.
+
+    The splice is cached, but on the files' modification times rather
+    than for the life of the process -- so a board written underneath a
+    running server is served by the next request, and a refresh always
+    shows what is actually there."""
+    global _page, _stamp
+    now = _mtimes()
+    if _page is None or now != _stamp:
         with open(TPL) as fh:
             tpl = fh.read()
         with open(DATA) as fh:
@@ -59,6 +70,7 @@ def page():
         _, _, tail = rest.partition("/*DATA*/")
         _page = (head + data + tail).replace('/*MODE*/"local"/*MODE*/',
                                              '"live"')
+        _stamp = now
     return _page
 
 
@@ -74,7 +86,7 @@ class H(BaseHTTPRequestHandler):
     server_version = "nba-props"
     protocol_version = "HTTP/1.1"
 
-    def _send(self, code, body, ctype, cache="no-cache"):
+    def _send(self, code, body, ctype, cache="no-cache", etag=None):
         if isinstance(body, str):
             body = body.encode()
         hdrs = {}
@@ -91,6 +103,8 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", cache)
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
+        if etag:
+            self.send_header("ETag", etag)
         for k, v in hdrs.items():
             self.send_header(k, v)
         self.end_headers()
@@ -129,10 +143,23 @@ class H(BaseHTTPRequestHandler):
             return
         if path in ("/", "/index.html"):
             try:
-                return self._send(200, page(), "text/html; charset=utf-8")
+                body = page()
             except FileNotFoundError:
                 return self._send(503, "no board has been published yet",
                                   "text/plain")
+            # An ETag over the file state, so a reload that finds nothing
+            # changed costs a 304 instead of a quarter of a megabyte --
+            # and a reload that does find a new board always gets it.
+            tag = '"%x-%x"' % (int(_stamp[0]), int(_stamp[1]))
+            if self.headers.get("If-None-Match") == tag:
+                self.send_response(304)
+                self.send_header("ETag", tag)
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            return self._send(200, body, "text/html; charset=utf-8",
+                              etag=tag)
         if path == "/api/meta":
             return self._send(200, json.dumps(meta()), "application/json")
         self._send(404, "not found", "text/plain")
