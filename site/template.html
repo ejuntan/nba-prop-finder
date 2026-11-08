@@ -1134,6 +1134,61 @@ function quotes(){
   });
   return out;
 }
+/* The cheatsheets, in the genre's own categories: one list per way of
+   cutting a record, each entry a prop that has actually done it. */
+const SHEETS=[
+  ["Recent form","the last ten games, whoever they were against",
+   r=>r.last10],
+  ["Against tonight's opponent","every meeting inside the game logs",
+   r=>r.vs],
+  ["Home and away","only the games on this side of the fixture",
+   r=>r.side_games],
+  ["With a team-mate out","his record in the games that man missed",
+   r=>r.without],
+];
+function sheetCard(r,t,label){
+  const over=t.o*2>=t.dec, side=over?"over":"under";
+  const hits=over?t.o:t.dec-t.o;
+  const price=over?r.dOver:r.dUnder;
+  const bk=over?r.q.over_book:r.q.under_book;
+  const key=legKey(r.p.id,r.stat,side);
+  return `<div class="card">
+    <div class="card-top">
+      <div><b class="name" data-id="${r.p.id}">${r.p.name}</b>
+        <span class="dim">${r.p.home?"vs":"@"} ${r.p.opp}</span></div>
+      <button class="add${inSlip(key)?" on":""}" data-leg="${key}"
+        >${inSlip(key)?"\u2713":"+"}</button>
+    </div>
+    <div class="card-prop">${side} ${r.line.toFixed(1)} ${LBL[r.stat]}
+      <span class="num dim">${fmtD(price)}</span>
+      <span class="dim2">${bk}${r.q.n>1?` +${r.q.n-1}`:""}</span></div>
+    <div class="card-hit">
+      <span class="rec ${hits===t.dec?"good":""}"><b>${hits}</b>/${t.dec}</span>
+      <span class="hitpct">${(100*Math.max(t.o,t.dec-t.o)/t.dec).toFixed(0)}%</span>
+      <span class="dim2">${label}</span></div>
+    ${stripOf(r.gl,r.stat,r.line)}</div>`;
+}
+/* The four cuts a cheatsheet card can be built from. Lost once to a
+   bad splice, which the board only hid because nothing was quoted that
+   night. */
+function propSlices(q){
+  const p=q.p, stat=q.stat, line=q.line;
+  const log=D.recent[p.id]||[];
+  const byDate=(D.played||{})[p.team]||{};
+  let without=null, whom=null;
+  D.players.filter(x=>x.out&&x.team===p.team&&x.id!==p.id)
+    .sort((a,b)=>b.base_min-a.base_min).forEach(m=>{
+      const g=log.filter(x=>byDate[x.d]&&byDate[x.d].indexOf(m.id)<0);
+      const t=tallyGames(g,stat,line);
+      if(t.dec>=3&&(!without||t.dec>without.dec)){ without=t; whom=m; }
+    });
+  return {
+    last10:tallyGames(log.slice(-10),stat,line),
+    vs:tallyGames(log.filter(g=>g.o===p.opp),stat,line),
+    side_games:tallyGames(log.filter(g=>!!g.h===!!p.home),stat,line),
+    without, whom,
+  };
+}
 function drawHome(){
   // Tonight first, the way a sports page opens: who is playing, when,
   // and how many of them have a market on the board.
