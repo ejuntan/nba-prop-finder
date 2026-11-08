@@ -221,7 +221,35 @@ def match_player(name, idx, short):
 
 
 def team_map(con_nba):
-    return {r[1]: r[0] for r in con_nba.execute("SELECT team, display FROM teams")}
+    """The book's team names, mapped to our abbreviations.
+
+    Exact display names first, then nicknames. ESPN writes "LA
+    Clippers" and the book writes "Los Angeles Clippers", and matching
+    on the display name alone silently dropped every Clippers game from
+    the odds fetch all season. Two cities can disagree about their own
+    name; nicknames are unique across the league and the two sources
+    agree on them.
+    """
+    m = {}
+    for ab, display, nick in con_nba.execute(
+            "SELECT team, display, nickname FROM teams"):
+        if display:
+            m[display] = ab
+        if nick:
+            m.setdefault(nick, ab)
+    return m
+
+
+def resolve_team(name, tmap):
+    """One of the book's team names, as an abbreviation, or None."""
+    if not name:
+        return None
+    if name in tmap:
+        return tmap[name]
+    for key, ab in tmap.items():
+        if name == key or name.endswith(" " + key):
+            return ab
+    return None
 
 
 # --------------------------------------------------------------- fetch
@@ -236,14 +264,28 @@ def events(day):
         con_nba, params=(day,))
     by_pair = {(r.home, r.away): r.game_id for r in games.itertuples(index=False)}
     out = []
+    unknown, unmatched = [], []
     for e in j:
-        home, away = tmap.get(e.get("home_team")), tmap.get(e.get("away_team"))
+        hn, an = e.get("home_team"), e.get("away_team")
+        home, away = resolve_team(hn, tmap), resolve_team(an, tmap)
+        if not home or not away:
+            # Loudly. A name this code cannot read is a game it will
+            # never price, and it stayed quiet about that for a season.
+            unknown.append(f"{an} @ {hn}")
+            continue
         gid = by_pair.get((home, away))
         if gid is None:
+            unmatched.append(f"{away}@{home} {e.get('commence_time','')[:10]}")
             continue
         out.append({"event_id": e["id"], "game_id": int(gid),
                     "commence": e.get("commence_time"),
                     "home": home, "away": away})
+    if unknown:
+        print("odds: team names this code cannot read, so these games "
+              "cannot be priced: " + "; ".join(unknown))
+    if unmatched and len(unmatched) < len(j):
+        print(f"odds: {len(unmatched)} of the book's events are not on "
+              f"{day}'s schedule here (other days, mostly)")
     con_nba.close()
     return out, games
 
