@@ -167,6 +167,27 @@ def main():
             "line": {s: r2(getattr(r, f"line_{s}"), 1) for s in SHOW},
         })
 
+    # Team form, for the team trends: points for and against, per game,
+    # over the same window the player logs cover. Cheap -- one row per
+    # team-game -- and it is the only way to ask whether a side has gone
+    # over its own total, or covered, without buying a market for it.
+    tl = pd.read_sql("""
+        SELECT t.game_id, t.team, t.opp, t.is_home, t.pts, t.fg3m,
+               g.date, o.pts AS opp_pts
+        FROM team_lines t JOIN games g USING(game_id)
+        JOIN team_lines o ON o.game_id = t.game_id AND o.team = t.opp
+        WHERE g.state = 'post' AND g.season_type IN (2,3,5)
+          AND t.team IN ({})
+        ORDER BY g.date
+    """.format(",".join("?" * len(teams_tonight))), con,
+        params=list(teams_tonight))
+    tform = {}
+    for team, grp in tl.groupby("team"):
+        g = grp.tail(RECENT)
+        tform[team] = [[r.date, r.opp, int(r.is_home), int(r.pts),
+                        int(r.opp_pts), int(r.fg3m)]
+                       for r in g.itertuples(index=False)]
+
     games = []
     for gid, grp in sl.groupby("game_id", sort=False):
         a = grp.iloc[0]
@@ -199,6 +220,8 @@ def main():
                   for s in SHOW},
         "games": games, "recent_cols": rcols, "recent": recent,
         "played": played,
+        "team_cols": ["d", "o", "h", "pts", "opp_pts", "fg3m"],
+        "team_form": tform,
         "players": players,
         "defense": defense_block(con),
         "scorecard": scorecard(),

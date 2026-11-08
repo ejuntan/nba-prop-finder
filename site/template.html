@@ -75,6 +75,15 @@ nav::-webkit-scrollbar{display:none}
 nav button{background:none;border:0;border-radius:var(--r-sm);
   color:var(--dim);padding:7px 14px;font-size:13px;cursor:pointer;
   white-space:nowrap;font-weight:550;transition:background .12s,color .12s}
+.subnav{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;
+  scrollbar-width:none}
+.subnav::-webkit-scrollbar{display:none}
+.subnav button{background:none;border:1px solid var(--line);
+  border-radius:999px;color:var(--dim);padding:5px 13px;font-size:12.5px;
+  cursor:pointer;white-space:nowrap;font-weight:550;font-family:inherit}
+.subnav button.on{color:var(--ink);background:var(--panel2);
+  border-color:var(--line2)}
+.subnav button:hover{color:var(--ink)}
 nav button.on{color:var(--ink);background:var(--panel2);
   box-shadow:inset 0 0 0 1px var(--line2)}
 nav button:hover{color:var(--ink)}
@@ -405,6 +414,12 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
       which are a different sport for minutes &mdash; <b>This season
       only</b> cuts it to games since October.</p>
     </div>
+  </div>
+  <div class="subnav">
+    <button data-s="player" class="on">Player</button>
+    <button data-s="team">Team</button>
+    <button data-s="parlay">Parlay</button>
+    <button data-s="alt">Alternate lines</button>
   </div>
   <div id="tt" class="cards"></div>
 </section>
@@ -1085,13 +1100,161 @@ function trendCard(r){
     </div>
     ${stripOf(r.g,r.stat,r.line)}</div>`;
 }
+/* Team form: the same question asked of a side rather than a player.
+   No book is bought for these, so the number is the team's own median
+   over the window -- its record against itself, which is what a form
+   table is. */
+const TEAM_SHEETS=[
+  ["points scored", r=>r.pts, "their own median"],
+  ["points conceded", r=>r.opp_pts, "their own median"],
+  ["the game's total", r=>r.pts+r.opp_pts, "the median total"],
+  ["threes made", r=>r.fg3m, "their own median"],
+];
+function teamCards(){
+  const out=[];
+  (D.games||[]).forEach(g=>[g.away,g.home].forEach(team=>{
+    const rows=(D.team_form||{})[team]||[];
+    if(rows.length<6)return;
+    const log=rows.map(r=>Object.fromEntries(
+      (D.team_cols||[]).map((c,i)=>[c,r[i]])));
+    TEAM_SHEETS.forEach(([label,get,how])=>{
+      const v=log.map(get).sort((a,b)=>a-b);
+      const med=Math.round((v.length%2?v[(v.length-1)/2]
+        :(v[v.length/2-1]+v[v.length/2])/2)*2)/2;
+      const last10=log.slice(-10);
+      let o=0,u=0; last10.forEach(x=>{const q=get(x);
+        if(q>med)o++; else if(q<med)u++;});
+      if(o+u<5)return;
+      const home=log.filter(x=>x.h===(team===g.home?1:0));
+      let ho=0,hu=0; home.forEach(x=>{const q=get(x);
+        if(q>med)ho++; else if(q<med)hu++;});
+      out.push({team,g,label,how,med,t:{o,u,dec:o+u},
+        side:{o:ho,u:hu,dec:ho+hu},
+        strength:Math.max(o,u)/(o+u)});
+    });
+  }));
+  return out.sort((a,b)=>b.strength-a.strength);
+}
+function teamCard(c){
+  const over=c.t.o*2>=c.t.dec, hits=over?c.t.o:c.t.dec-c.t.o;
+  const sh=over?c.side.o:c.side.dec-c.side.o;
+  return `<div class="card">
+    <div class="card-top"><div><b>${c.team}</b>
+      <span class="dim">${c.g.away} @ ${c.g.home}</span></div></div>
+    <div class="card-prop">${over?"over":"under"} ${c.med.toFixed(1)}
+      ${c.label} <span class="src">${c.how}</span></div>
+    <div class="hitrows">
+      <div class="hitrow"><span>Hit in ${hits} of last ${c.t.dec} games</span>
+        <b>${(100*hits/c.t.dec).toFixed(0)}%</b></div>
+      ${c.side.dec?`<div class="hitrow"><span>Hit in ${sh} of last
+        ${c.side.dec} ${c.g.home===c.team?"home":"away"} games</span>
+        <b>${(100*sh/c.side.dec).toFixed(0)}%</b></div>`:""}
+    </div></div>`;
+}
+/* Parlays, built from the strongest records rather than offered by
+   anyone -- and priced through the same copula as the slip, so a pair
+   that is really one bet says so instead of looking twice as good. */
+function parlayCards(){
+  const pool=trendRows().filter(r=>r.t.dec>=5&&r.g.length)
+    .map(r=>({r,side:r.t.o*2>=r.t.dec?"over":"under",
+      s:Math.max(r.t.o,r.t.dec-r.t.o)/r.t.dec}))
+    .filter(x=>x.s>=0.75).sort((a,b)=>b.s-a.s).slice(0,14);
+  const out=[];
+  for(let i=0;i<pool.length;i++)for(let j=i+1;j<pool.length;j++){
+    const A=pool[i], B=pool[j];
+    if(A.r.p.id===B.r.p.id)continue;
+    const legs=[legOf(legKey(A.r.p.id,A.r.stat,A.side)),
+                legOf(legKey(B.r.p.id,B.r.stat,B.side))].filter(Boolean);
+    if(legs.length<2)continue;
+    const {C}=slipMatrix(legs);
+    const ps=legs.map(l=>l.model);
+    const joint=jointProb(ps,C,8000), naive=ps[0]*ps[1];
+    const dec=legs.reduce((a,l)=>a*l.odds,1);
+    out.push({A,B,legs,joint,naive,dec,rho:C[0][1],
+      sgp:A.r.p.gid===B.r.p.gid});
+  }
+  return out.sort((a,b)=>b.joint-a.joint).slice(0,12);
+}
+function parlayCard(c){
+  const leg=(x,l)=>`<div class="hitrow"><span>${x.r.p.name} ${x.side}
+    ${x.r.line.toFixed(1)} ${LBL[x.r.stat]}</span>
+    <b>${Math.max(x.r.t.o,x.r.t.dec-x.r.t.o)}/${x.r.t.dec}</b></div>`;
+  const gap=c.joint-c.naive;
+  return `<div class="card">
+    <div class="card-top"><div><b>${c.sgp?"Same game":"Two games"}</b>
+      <span class="dim">${c.A.r.p.team} ${c.sgp?"":"&middot; "+c.B.r.p.team}</span></div>
+      <span class="hitpct">${pct(c.joint)}</span></div>
+    <div class="hitrows">${leg(c.A)}${leg(c.B)}</div>
+    <div class="card-prop"><span class="dim">pays</span>
+      <span class="num">${fmtD(c.dec)}</span>
+      <span class="dim2">&middot; ${Math.abs(gap)<0.005?"barely correlated"
+        :(gap>0?`${pct(gap)} likelier together than apart`
+               :`${pct(-gap)} less likely together &mdash; they fight`)}</span></div>
+  </div>`;
+}
+/* Alternate lines: round thresholds nobody is quoting, which is why
+   they are interesting -- a record at "25+ points" is the same question
+   the cards ask, asked where the market is silent. */
+const ALT_STEPS={pts:[10,15,20,25,30,35],reb:[4,6,8,10,12],
+  ast:[2,4,6,8,10],fg3m:[1,2,3,4,5],pra:[20,25,30,35,40,45]};
+function altCards(){
+  const out=[];
+  D.players.filter(p=>!p.out&&p.min>=18).forEach(p=>{
+    const log=D.recent[p.id]||[];
+    if(log.length<8)return;
+    Object.keys(ALT_STEPS).forEach(stat=>{
+      ALT_STEPS[stat].forEach(k=>{
+        const hits=log.filter(g=>actual(g,stat)>=k).length;
+        if(hits<log.length*0.8||hits<8)return;
+        out.push({p,stat,k,hits,n:log.length,s:hits/log.length});
+      });
+    });
+  });
+  return out.sort((a,b)=>b.s-a.s||b.k-a.k).slice(0,24);
+}
+function altCard(c){
+  return `<div class="card">
+    <div class="card-top"><div>
+      <b class="name" data-id="${c.p.id}">${c.p.name}</b>
+      <span class="dim">${c.p.home?"vs":"@"} ${c.p.opp}</span></div></div>
+    <div class="card-prop">${c.k}+ ${LBL[c.stat]}
+      <span class="src">no book</span></div>
+    <div class="card-hit">
+      <span class="rec ${c.hits===c.n?"good":""}"><b>${c.hits}</b>/${c.n}</span>
+      <span class="hitpct">${(100*c.s).toFixed(0)}%</span>
+      <span class="dim2">of the window</span></div></div>`;
+}
+let tSub="player";
 function drawTrends(){
+  const box=$("#tt");
+  box.className="cards";
+  if(tSub==="team"){
+    const c=teamCards();
+    box.innerHTML=c.length?c.slice(0,24).map(teamCard).join("")
+      :`<div class="panel"><div class="hint"><span>Not enough team games
+        on record yet.</span></div></div>`;
+    return;
+  }
+  if(tSub==="parlay"){
+    const c=parlayCards();
+    box.innerHTML=c.length?c.map(parlayCard).join("")
+      :`<div class="panel"><div class="hint"><span>No two records strong
+        enough to pair up tonight.</span></div></div>`;
+    return;
+  }
+  if(tSub==="alt"){
+    const c=altCards();
+    box.innerHTML=c.length?c.map(altCard).join("")
+      :`<div class="panel"><div class="hint"><span>Nobody has cleared a
+        round number often enough to list.</span></div></div>`;
+    box.querySelectorAll(".name").forEach(n=>{
+      n.onclick=()=>selectPlayerById(+n.dataset.id);});
+    return;
+  }
   let rows=trendRows().filter(r=>r.t.dec>=3);
   if($("#tsig").checked)rows=rows.filter(r=>r.sig);
   const score=r=>Math.max(r.t.o,r.t.dec-r.t.o)/r.t.dec;
   rows.sort((a,b)=>score(b)-score(a)||b.t.dec-a.t.dec);
-  const box=$("#tt");
-  box.className="cards";
   box.innerHTML=rows.length?rows.slice(0,60).map(trendCard).join("")
     :`<div class="panel"><h3>Nothing to show</h3><div class="hint"><span>No
       player on the slate has three decided games at this number.
@@ -2264,6 +2427,13 @@ function init(){
     $("#tseason").checked=false; $("#tsig").checked=false;
     tSort="hit"; tDir=-1; drawTrends();
   };
+  document.querySelectorAll(".subnav button").forEach(b=>{
+    b.onclick=()=>{
+      tSub=b.dataset.s;
+      document.querySelectorAll(".subnav button").forEach(x=>
+        x.classList.toggle("on",x===b));
+      drawTrends();
+    };});
   ["pxgame","pxbooks","pxedge"].forEach(id=>
     $("#"+id).addEventListener("input",drawSheets));
   $("#pxreset").onclick=()=>{
