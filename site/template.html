@@ -1059,7 +1059,9 @@ function trendCard(r){
   let wrow="";
   D.players.filter(x=>x.out&&x.team===r.p.team&&x.id!==r.p.id)
     .sort((a,b)=>b.base_min-a.base_min).some(m=>{
-      const g=log.filter(x=>byDate[x.d]&&byDate[x.d].indexOf(m.id)<0);
+      const known=log.filter(x=>byDate[x.d]);
+      const g=known.filter(x=>byDate[x.d].indexOf(m.id)<0);
+      if(known.length-g.length<WITH_MIN)return false;
       const t=tallyGames(g,r.stat,r.line);
       if(t.dec<3)return false;
       wrow=hitRow(`games without ${surname(m.name)}`,t);
@@ -1171,6 +1173,7 @@ function sheetCard(r,t,label){
 /* The four cuts a cheatsheet card can be built from. Lost once to a
    bad splice, which the board only hid because nothing was quoted that
    night. */
+const WITH_MIN=2;          // games alongside him, before "without" means anything
 function propSlices(q){
   const p=q.p, stat=q.stat, line=q.line;
   const log=D.recent[p.id]||[];
@@ -1178,7 +1181,9 @@ function propSlices(q){
   let without=null, whom=null;
   D.players.filter(x=>x.out&&x.team===p.team&&x.id!==p.id)
     .sort((a,b)=>b.base_min-a.base_min).forEach(m=>{
-      const g=log.filter(x=>byDate[x.d]&&byDate[x.d].indexOf(m.id)<0);
+      const known=log.filter(x=>byDate[x.d]);
+      const g=known.filter(x=>byDate[x.d].indexOf(m.id)<0);
+      if(known.length-g.length<WITH_MIN)return;   // he was never there
       const t=tallyGames(g,stat,line);
       if(t.dec>=3&&(!without||t.dec>without.dec)){ without=t; whom=m; }
     });
@@ -1837,8 +1842,10 @@ function splitsPanel(p,stat,line,src,nb){
     .sort((a,b)=>b.base_min-a.base_min).slice(0,4);
   outs.forEach(q=>{
     const g=known.filter(x=>byDate[x.d].indexOf(q.id)<0);
+    // Only worth a row if the log has him on both sides of it.
+    if(known.length-g.length<WITH_MIN)return;
     rows.push(splitRow(`Without ${q.name}`,tallyGames(g,stat,line),
-      q.status?q.status.toLowerCase():"out tonight"));
+      `${known.length-g.length} with him, ${g.length} without`));
   });
   const miss=log.length-known.length;
   return el("div","panel",`
