@@ -936,7 +936,7 @@ function drawHead(){
     ["Tonight", m.games, "games",
      `${DATEF(m.slate)}${stale?" &mdash; already played":""}`],
     ["Players", live, "on the board",
-     out?`${out} more ruled out, kept on the board`:"nobody ruled out"],
+     out?`${out} more ruled out, kept and greyed`:"nobody ruled out"],
     ["Market", m.book?m.book.props:"&mdash;", m.book?"markets":"",
      m.book?`quoted by ${books} book${books===1?"":"s"}`
            :"no lines fetched for this slate"],
@@ -951,7 +951,7 @@ function drawHead(){
   $("#foot").innerHTML=
     `<span>${m.source}${m.book?", prices from The Odds API":""}.</span>`
     +`<span>Built ${m.built}.</span>`
-    +`<span>Projections are the model's own and nothing here is advice.</span>`;
+    +`<span>Records, not forecasts. Nothing here is advice.</span>`;
 }
 
 /* ---------- trends ---------- */
