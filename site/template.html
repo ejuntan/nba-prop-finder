@@ -243,6 +243,28 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
 .strip i{width:7px;height:13px;border-radius:2px;display:inline-block}
 .strip i.o{background:var(--over)} .strip i.u{background:var(--under)}
 .strip i.p{background:var(--dim2)}
+/* tonight's fixtures, the way a sports page opens */
+.fixtures{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
+  gap:8px;margin-top:10px}
+.fx{display:grid;grid-template-columns:auto auto auto 1fr;align-items:baseline;
+  gap:6px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:var(--r-sm);padding:9px 11px;cursor:pointer;text-align:left;
+  color:var(--ink);font-size:13px;font-family:inherit}
+.fx:hover{border-color:var(--accent)}
+.fx-t{font-weight:650;letter-spacing:-.2px}
+.fx-at{color:var(--dim2);font-size:11px}
+.fx-time{color:var(--dim);font-size:11px;text-align:right}
+.fx-n{grid-column:1/-1;color:var(--accent);font-size:11px}
+/* the trend card: a prop, its price, and the record several ways */
+.hitrows{display:flex;flex-direction:column;gap:3px;margin:8px 0}
+.hitrow{display:flex;align-items:baseline;gap:8px;font-size:12px;
+  color:var(--dim)}
+.hitrow span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.hitrow b{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  color:var(--ink);font-weight:600}
+.hitrow.hot b{color:var(--good)}
+.hitrow.cold b{color:var(--bad)}
 /* cheatsheet cards: one prop, one slice, one record */
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
   gap:10px;margin-bottom:16px}
@@ -318,8 +340,8 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
 </header>
 <div class="kpis" id="kpis"></div>
 <nav>
-  <button data-t="trends" class="on">Trends</button>
-  <button data-t="props">Top props</button>
+  <button data-t="home" class="on">Home</button>
+  <button data-t="trends">Trends</button>
   <button data-t="slip">Slip <span class="badge hide" id="slipn"></span></button>
   <button data-t="sheet">Sheet</button>
   <button data-t="player">Player</button>
@@ -336,7 +358,7 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
   <pre class="rflog" id="rflog"></pre>
 </div>
 
-<section id="t-trends">
+<section id="t-trends" class="hide">
   <div class="panel">
     <div class="bar-row">
       <select id="tstat"></select>
@@ -384,11 +406,12 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
       only</b> cuts it to games since October.</p>
     </div>
   </div>
-  <div class="scroll"><table id="tt"></table></div>
+  <div id="tt" class="cards"></div>
 </section>
 
 
-<section id="t-props" class="hide">
+<section id="t-home">
+  <div class="panel" id="slatecard"></div>
   <div class="panel">
     <div class="bar-row">
       <select id="pxgame"><option value="">All games</option></select>
@@ -440,7 +463,8 @@ tatum, reb, 8.5"></textarea>
     </div>
     <div class="hint"><span>One per line:
       <span class="num">player, stat, line, over, under</span> &mdash; odds
-      optional, decimal or American.</span>
+      optional, decimal or American. The over column is his own record
+      at that number, shrunk, not a projection.</span>
       <span class="more" data-fold="s1">stat keys</span></div>
     <div class="longform hide" id="f-s1">
       <p class="num" id="statkeys"></p>
@@ -939,10 +963,7 @@ const CURSEASON=D.meta.seasons[D.meta.seasons.length-1]||{};
 const SEASON_FROM=CURSEASON.from||"";
 let tSort="hit", tDir=-1;
 
-function tLine(p,stat){
-  const q=(p.book&&p.book[stat])?p.book[stat]:null;
-  return q?{line:q.line,src:"book",nb:q.n}:{line:p.line[stat],src:"model",nb:0};
-}
+const tLine=(p,stat)=>lineFor(p,stat);
 function tGames(p,N,split,seasonOnly){
   let g=D.recent[p.id]||[];
   if(seasonOnly) g=g.filter(x=>x.d>=SEASON_FROM);
@@ -1011,61 +1032,72 @@ function trendRows(){
       sig:beyondNoise(t)};
   });
 }
-const TCOLS=[
-  ["name","Player","l",r=>`<span class="name" data-id="${r.p.id}">${r.p.name}</span>${thinPill(r.p)}`],
-  ["team","Match","l",r=>`<span class="dim">${matchup(r.p)}</span>`],
-  ["line","Line","",r=>`${r.line.toFixed(1)}<span class="src ${r.src}" title="${
-    r.src==="book"?r.nb+" book"+(r.nb===1?"":"s")+" on this number":
-    "no book quoting it -- the model's own even-money line"}">${r.src}</span>`],
-  ["hit","Record","",r=>recCell(r.t)],
-  ["strip","Last","l",r=>r.g.length?stripOf(r.g,r.stat,r.line):dash],
-  ["run","Run","",r=>r.run.k?`<span class="${r.run.side==="o"?"good":"bad"}">${
-    r.run.side==="o"?"O":"U"}${r.run.k}</span>`:dash],
-  ["home","Home","",r=>recCell(r.home)],
-  ["away","Away","",r=>recCell(r.away)],
-  ["vs","vs Opp","",r=>r.vs.dec?recCell(r.vs):dash],
-  ["margin","Margin","",r=>r.margin===null?dash
-    :`<span class="${cls(r.margin)}">${sgn2(r.margin)}</span>`],
-  // Minutes in the window against minutes tonight: a record built on a
-  // different role is the commonest reason a hit rate misleads.
-  ["mins","Min","",r=>r.mins===null?dash
-    :`<span class="dim">${r.mins.toFixed(0)}</span>
-      <span class="dim2">&rarr;</span> ${r.p.min.toFixed(0)}`],
-  ["mu","Proj","",r=>`<b>${r.p.mu[r.stat].toFixed(1)}</b>`],
-];
+/* A trend card, in the shape the genre uses: who, what number, what it
+   pays, and then the same question asked of several slices of his own
+   record. The slices are the point -- one hit rate is a fact, four of
+   them disagreeing is the interesting part. */
+/* "games without Jr." is nobody. Suffixes are not surnames. */
+const SUFFIX=/^(jr|sr|ii|iii|iv|v)\.?$/i;
+function surname(name){
+  const parts=name.split(" ").filter(x=>!SUFFIX.test(x));
+  return parts[parts.length-1]||name;
+}
+function hitRow(label,t){
+  if(!t||!t.dec)return "";
+  const over=t.o*2>=t.dec, hits=over?t.o:t.dec-t.o, pc=hits/t.dec;
+  const cl=beyondNoise(t)?(pc>0.5?"hot":"") : "";
+  return `<div class="hitrow ${cl}"><span>Hit in ${hits} of last ${t.dec}
+    ${label}</span><b>${(100*pc).toFixed(0)}%</b></div>`;
+}
+function trendCard(r){
+  const over=r.t.o*2>=r.t.dec, side=over?"over":"under";
+  const q=r.p.book&&r.p.book[r.stat]?r.p.book[r.stat]:null;
+  const price=q?a2d(side==="over"?q.over:q.under):null;
+  const key=legKey(r.p.id,r.stat,side);
+  const log=D.recent[r.p.id]||[];
+  const byDate=(D.played||{})[r.p.team]||{};
+  let wrow="";
+  D.players.filter(x=>x.out&&x.team===r.p.team&&x.id!==r.p.id)
+    .sort((a,b)=>b.base_min-a.base_min).some(m=>{
+      const g=log.filter(x=>byDate[x.d]&&byDate[x.d].indexOf(m.id)<0);
+      const t=tallyGames(g,r.stat,r.line);
+      if(t.dec<3)return false;
+      wrow=hitRow(`games without ${surname(m.name)}`,t);
+      return true;
+    });
+  return `<div class="card">
+    <div class="card-top">
+      <div><b class="name" data-id="${r.p.id}">${r.p.name}</b>
+        <span class="dim">${r.p.home?"vs":"@"} ${r.p.opp}</span></div>
+      <button class="add${inSlip(key)?" on":""}" data-leg="${key}"
+        >${inSlip(key)?"\u2713":"+"}</button>
+    </div>
+    <div class="card-prop">${side} ${r.line.toFixed(1)} ${LBL[r.stat]}
+      ${price?`<span class="num dim">${fmtD(price)}</span>`
+             :`<span class="src">${r.src}</span>`}</div>
+    <div class="hitrows">
+      ${hitRow("games",r.t)}
+      ${hitRow(`games vs ${r.p.opp}`,r.vs)}
+      ${hitRow(r.p.home?"home games":"away games",r.p.home?r.home:r.away)}
+      ${wrow}
+    </div>
+    ${stripOf(r.g,r.stat,r.line)}</div>`;
+}
 function drawTrends(){
-  let rows=trendRows();
-  if($("#tsig").checked) rows=rows.filter(r=>r.sig);
-  // Ranked on a smoothed rate, shown raw: one game at 1/1 is not a
-  // better record than nine out of ten, and sorting on the raw fraction
-  // puts every single-game player on top of the table.
-  const rank=t=>t.dec?(t.o+1)/(t.dec+2):-9;
-  const get=r=>({name:r.p.name,team:r.p.team,line:r.line,
-    hit:rank(r.t), strip:r.t.dec,
-    run:(r.run.side==="o"?1:-1)*r.run.k,
-    home:rank(r.home), away:rank(r.away), vs:rank(r.vs),
-    margin:r.margin===null?-999:r.margin,
-    mins:r.mins===null?-9:r.mins, mu:r.p.mu[r.stat]}[tSort]);
-  rows.sort((a,b)=>{const x=get(a),y=get(b);
-    return (typeof x==="string"?x.localeCompare(y):x-y)*tDir;});
-  const t=$("#tt"); t.innerHTML="";
-  const head=el("thead"), tr=el("tr");
-  TCOLS.forEach(([k,l,c])=>{
-    const th=el("th",c,l+(tSort===k?(tDir>0?" \u2191":" \u2193"):""));
-    th.onclick=()=>{if(tSort===k)tDir*=-1;else{tSort=k;tDir=-1;}drawTrends();};
-    tr.append(th);
-  });
-  head.append(tr); t.append(head);
-  const tb=el("tbody");
-  rows.forEach(r=>{
-    const row=el("tr");
-    TCOLS.forEach(([k,l,c,f])=>row.append(el("td",(c||"")+" num",f(r))));
-    tb.append(row);
-  });
-  t.append(tb);
-  t.querySelectorAll(".name").forEach(n=>{
-    n.onclick=()=>selectPlayerById(+n.dataset.id);
-  });
+  let rows=trendRows().filter(r=>r.t.dec>=3);
+  if($("#tsig").checked)rows=rows.filter(r=>r.sig);
+  const score=r=>Math.max(r.t.o,r.t.dec-r.t.o)/r.t.dec;
+  rows.sort((a,b)=>score(b)-score(a)||b.t.dec-a.t.dec);
+  const box=$("#tt");
+  box.className="cards";
+  box.innerHTML=rows.length?rows.slice(0,60).map(trendCard).join("")
+    :`<div class="panel"><h3>Nothing to show</h3><div class="hint"><span>No
+      player on the slate has three decided games at this number.
+      </span></div></div>`;
+  box.querySelectorAll(".name").forEach(n=>{
+    n.onclick=()=>selectPlayerById(+n.dataset.id);});
+  box.querySelectorAll(".add").forEach(b=>{
+    b.onclick=()=>{toggleLeg(b.dataset.leg);drawTrends();};});
 }
 
 /* ---------- top props ---------- */
@@ -1102,95 +1134,32 @@ function quotes(){
   });
   return out;
 }
-function propRow(r,rank){
-  const key=legKey(r.p.id,r.stat,r.side);
-  return `<tr>
-    <td class="l dim2">${rank}</td>
-    <td class="l"><span class="name" data-id="${r.p.id}">${r.p.name}</span>${thinPill(r.p)}</td>
-    <td class="l"><span class="dim">${matchup(r.p)}</span></td>
-    <td class="l">${LBL[r.stat]}</td>
-    <td class="num">${r.line.toFixed(1)}</td>
-    <td class="l"><b>${r.side}</b></td>
-    <td class="num">${fmtD(r.odds)}</td>
-    <td class="l dim">${r.book}${r.n>1?` <span class="dim2">+${r.n-1}</span>`:""}</td>
-    <td class="num">${r.mu.toFixed(1)}</td>
-    <td class="num">${pct(r.model)}</td>
-    <td class="num dim">${pct(r.mkt)}</td>
-    <td class="num ${cls(r.edge)}">${sgn(r.edge)}</td>
-    <td class="num ${cls(r.ev)}">${sgn(r.ev)}</td>
-    <td><button class="add${inSlip(key)?" on":""}" data-leg="${key}"
-      >${inSlip(key)?"\u2713":"+"}</button></td></tr>`;
+function drawHome(){
+  // Tonight first, the way a sports page opens: who is playing, when,
+  // and how many of them have a market on the board.
+  const byGame={};
+  D.players.forEach(p=>{ if(!p.out)(byGame[p.gid]=byGame[p.gid]||[]).push(p); });
+  const quoted={};
+  quotes().forEach(q=>{ quoted[q.p.gid]=(quoted[q.p.gid]||0)+1; });
+  $("#slatecard").innerHTML=`<h3>Tonight
+      <span class="dim">&middot; ${DATEF(D.meta.slate)}</span></h3>
+    <div class="fixtures">`+D.games.map(g=>{
+      const t=new Date(g.tip);
+      const et=t.toLocaleTimeString("en-US",{timeZone:"America/New_York",
+        hour:"numeric",minute:"2-digit"});
+      const n=quoted[g.gid]||0;
+      return `<button class="fx" data-g="${g.gid}">
+        <span class="fx-t">${g.away}</span>
+        <span class="fx-at">@</span>
+        <span class="fx-t">${g.home}</span>
+        <span class="fx-time">${et} ET</span>
+        <span class="fx-n ${n?"":"dim2"}">${n?`${n} markets`:"no market"}</span>
+      </button>`;}).join("")+`</div>`;
+  $("#slatecard").querySelectorAll(".fx").forEach(b=>{
+    b.onclick=()=>{ $("#pxgame").value=b.dataset.g; drawSheets(); };});
+  drawSheets();
 }
-function propTable(title,note,rows){
-  if(!rows.length)return "";
-  const head=`<tr><th class="l"></th><th class="l">Player</th>
-    <th class="l">Match</th><th class="l">Market</th><th>Line</th>
-    <th class="l">Side</th><th>Price</th><th class="l">Book</th>
-    <th>Proj</th><th>Model</th><th>Mkt</th><th>Edge</th><th>EV</th>
-    <th></th></tr>`;
-  return `<div class="panel"><h3>${title}
-      <span class="dim">${note}</span></h3></div>
-    <div class="scroll"><table><thead>${head}</thead><tbody>`
-    +rows.map((r,i)=>propRow(r,i+1)).join("")+`</tbody></table></div>`;
-}
-/* Cheatsheets: every quoted prop, cut the way a stats tool cuts it.
-   Not ranked by what a model thinks the price is worth -- ranked by how
-   often the thing has actually happened, which is the question being
-   asked. The price is shown because it is the number the record is
-   measured against, not because anything here is calling it value. */
-const SHEETS=[
-  ["Recent form","the last ten games, whoever they were against",
-   r=>r.last10],
-  ["Against tonight's opponent","every meeting inside the game logs",
-   r=>r.vs],
-  ["Home and away","only the games on this side of the fixture",
-   r=>r.side_games],
-  ["With a team-mate out","his record in the games that man missed",
-   r=>r.without],
-];
-function propSlices(q){
-  const p=q.p, stat=q.stat, line=q.line;
-  const log=D.recent[p.id]||[];
-  const byDate=(D.played||{})[p.team]||{};
-  const outs=D.players.filter(x=>x.out&&x.team===p.team&&x.id!==p.id)
-    .sort((a,b)=>b.base_min-a.base_min);
-  let without=null, whom=null;
-  for(const m of outs){
-    const g=log.filter(x=>byDate[x.d]&&byDate[x.d].indexOf(m.id)<0);
-    const t=tallyGames(g,stat,line);
-    if(t.dec>=3&&(!without||t.dec>without.dec)){ without=t; whom=m; }
-  }
-  return {
-    last10:tallyGames(log.slice(-10),stat,line),
-    vs:tallyGames(log.filter(g=>g.o===p.opp),stat,line),
-    side_games:tallyGames(log.filter(g=>!!g.h===!!p.home),stat,line),
-    without, whom,
-  };
-}
-function sheetCard(r,t,label){
-  const pctv=t.o/t.dec, over=pctv>=0.5;
-  const side=over?"over":"under";
-  const hits=over?t.o:t.dec-t.o;
-  const price=over?r.dOver:r.dUnder;
-  const bk=over?r.q.over_book:r.q.under_book;
-  const key=legKey(r.p.id,r.stat,side);
-  return `<div class="card">
-    <div class="card-top">
-      <div><b class="name" data-id="${r.p.id}">${r.p.name}</b>
-        <span class="dim">${matchup(r.p)}</span></div>
-      <button class="add${inSlip(key)?" on":""}" data-leg="${key}"
-        >${inSlip(key)?"\u2713":"+"}</button>
-    </div>
-    <div class="card-prop">${side} ${r.line.toFixed(1)} ${LBL[r.stat]}
-      <span class="num dim">${fmtD(price)}</span>
-      <span class="dim2">${bk}${r.q.n>1?` +${r.q.n-1}`:""}</span></div>
-    <div class="card-hit">
-      <span class="rec ${hits===t.dec?"good":""}"><b>${hits}</b>/${t.dec}</span>
-      <span class="hitpct">${(100*Math.max(pctv,1-pctv)).toFixed(0)}%</span>
-      <span class="dim2">${label}</span></div>
-    ${stripOf(r.gl,r.stat,r.line)}</div>`;
-}
-function drawProps(){
+function drawSheets(){
   const gid=$("#pxgame").value, minB=+$("#pxbooks").value,
         minPct=(+$("#pxedge").value||0)/100;
   const all=quotes();
@@ -1227,7 +1196,7 @@ function drawProps(){
   body.querySelectorAll(".name").forEach(n=>{
     n.onclick=()=>selectPlayerById(+n.dataset.id);});
   body.querySelectorAll(".add").forEach(b=>{
-    b.onclick=()=>{toggleLeg(b.dataset.leg);drawProps();};});
+    b.onclick=()=>{toggleLeg(b.dataset.leg);drawSheets();};});
 }
 
 /* ---------- the slip ---------- */
@@ -1253,17 +1222,26 @@ function toggleLeg(k){
   if(i>=0)SLIP.splice(i,1); else SLIP.push(k);
   saveSlip();
 }
+/* A leg's chance of landing is that player's own record at that
+   number, nothing more. A record is a small sample, so it is shrunk
+   towards even by a prior worth four games: ten from ten becomes 86%,
+   not 100% -- both nearer the truth and the difference between a parlay
+   that prices and one that claims certainty. */
+const PRIOR=4;
+const rateOf=(o,dec)=>(o+PRIOR/2)/(dec+PRIOR);
 function legOf(k){
   const [id,stat,side]=k.split("|");
-  const p=P[+id]; if(!p||!D.calib[stat])return null;
-  const q=(p.book&&p.book[stat])?p.book[stat]:null;
-  const mu=p.mu[stat], c=D.calib[stat];
-  const line=q?q.line:p.line[stat];
-  const po=pOver(mu,c,line), push=pPush(mu,c,line);
-  const model=side==="over"?po:1-po-push;
-  const odds=q?a2d(side==="over"?q.over:q.under):p2d(model);
-  return {k,p,stat,side,line,mu,model,odds,book:q?(side==="over"?q.over_book
-    :q.under_book):null,quoted:!!q};
+  const p=P[+id]; if(!p)return null;
+  const lf=lineFor(p,stat);
+  if(lf.line==null)return null;
+  const t=tallyGames(D.recent[p.id]||[],stat,lf.line);
+  if(!t.dec)return null;
+  const hits=side==="over"?t.o:t.dec-t.o;
+  const model=rateOf(hits,t.dec);
+  const odds=lf.q?a2d(side==="over"?lf.q.over:lf.q.under):p2d(model);
+  return {k,p,stat,side,line:lf.line,model,odds,hits,n:t.dec,
+    book:lf.q?(side==="over"?lf.q.over_book:lf.q.under_book):null,
+    quoted:!!lf.q};
 }
 /* Normal scores, so what goes into the copula is the correlation of the
    latent normals it assumes -- not the correlation of two skewed counts,
@@ -1400,18 +1378,18 @@ function drawSlip(){
     <td class="l"><span class="name" data-id="${l.p.id}">${l.p.name}</span></td>
     <td class="l"><span class="dim">${matchup(l.p)}</span></td>
     <td class="l">${LBL[l.stat]} <b>${l.side}</b> ${l.line.toFixed(1)}</td>
-    <td class="num">${l.mu.toFixed(1)}</td>
+    <td class="num rec">${l.hits}/${l.n}</td>
     <td class="num">${pct(l.model)}</td>
     <td class="num">${fmtD(l.odds)}</td>
-    <td class="l dim">${l.book||`<span class="dim2">model price</span>`}</td>
+    <td class="l dim">${l.book||`<span class="dim2">his own median</span>`}</td>
     <td><button class="add on" data-leg="${l.k}">&times;</button></td></tr>`).join("");
   const ws=warnings(legs,pairs);
   const gap=joint-naive;
   box.innerHTML=`
     <div class="kpis">
-      <div class="kpi"><div class="k">Model says</div>
+      <div class="kpi"><div class="k">On their records</div>
         <div class="v">${pct(joint)}</div>
-        <div class="c">with the legs' measured correlation</div></div>
+        <div class="c">shrunk, and with their measured correlation</div></div>
       <div class="kpi"><div class="k">If they were independent</div>
         <div class="v">${pct(naive)}</div>
         <div class="c">${Math.abs(gap)<0.0005?"same to a rounding":
@@ -1420,14 +1398,14 @@ function drawSlip(){
       <div class="kpi"><div class="k">Offered</div>
         <div class="v">${fmtD(dec)}</div>
         <div class="c">${pct(1/dec)} implied &mdash; what the book is saying</div></div>
-      <div class="kpi"><div class="k">Fair price</div>
+      <div class="kpi"><div class="k">That implies</div>
         <div class="v">${fmtD(fair)}</div>
-        <div class="c ${cls(evv)}">${sgn(evv)} expected per unit</div></div>
+        <div class="c ${cls(evv)}">${sgn(evv)} against the price offered</div></div>
     </div>
     ${ws.map(w=>`<div class="note ${w.cls}"><b>${w.t}</b> &mdash; ${w.d}</div>`).join("")}
     <div class="scroll"><table><thead><tr>
       <th class="l">Player</th><th class="l">Match</th><th class="l">Leg</th>
-      <th>Proj</th><th>Model</th><th>Price</th><th class="l">Book</th><th></th>
+      <th>Record</th><th>Shrunk</th><th>Price</th><th class="l">Book</th><th></th>
       </tr></thead><tbody>${rows}</tbody></table></div>
     <div class="panel"><div class="bar-row">
       <button class="ghost" id="slipclear">Clear the slip</button>
@@ -1452,16 +1430,16 @@ const SCOLS=[
   ["Match",0,"l",r=>`<span class="dim">${matchup(r.p)}</span>`],
   ["Stat",0,"l",r=>LBL[r.stat]],
   ["Line",0,"",r=>r.line.toFixed(1)],
-  ["Proj",0,"",r=>`<b>${r.mu.toFixed(2)}</b>`],
+  ["L10 avg",0,"",r=>`<b>${isFinite(r.mu)?r.mu.toFixed(1):dash}</b>`],
+  ["Record",0,"",r=>r.rec],
   ["Over",0,"",r=>pct(r.po)],
   ["Fair O",0,"",r=>fmtD(p2d(r.po))],
   ["Fair U",1,"",r=>fmtD(p2d(r.pu))],
   ["Book",0,"",r=>r.oo?`${fmtD(r.oo)} / ${fmtD(r.uo)}`:dash],
   ["Hold",1,"",r=>r.oo?`<span class="dim">${pct(d2p(r.oo)+d2p(r.uo)-1)}</span>`:""],
   ["Side",0,"",r=>r.side],
-  ["Edge",0,"",r=>r.edge===null?dash:`<span class="${cls(r.edge)}">${sgn(r.edge)}</span>`],
-  ["EV",0,"",r=>r.ev===null?dash:`<span class="${cls(r.ev)}">${sgn(r.ev)}</span>`],
-  ["Kelly",1,"",r=>r.kelly?pct(r.kelly):dash],
+  ["vs price",0,"",r=>r.edge===null?dash
+    :`<span class="${cls(r.edge)}" title="his record at this number, minus what the price implies -- two different kinds of number, compared">${sgn(r.edge)}</span>`],
   ["Opp D",0,"",r=>rankCell(r.p.opp,r.stat,defWindow(),r.p.pos)],
   ["L10",0,"",r=>r.hit===null?"":`<span class="dim">${r.hit}</span>`],
 ];
@@ -1488,9 +1466,14 @@ function priceSheet(){
       /^[+-]\d{2,4}$/.test(x)?a2d(+x):+x).filter(x=>isFinite(x)&&x>1);
     const p=findPlayer(parts.slice(0,si).join(" "));
     if(!p||!SK.includes(stat)||!isFinite(line)){bad.push(ln);return;}
-    const c=D.calib[stat], mu=p.mu[stat];
-    const po=pOver(mu,c,line), pu=1-po-pPush(mu,c,line);
+    // His record at the number you typed, shrunk, in place of the
+    // projection this used to run on.
+    const t10=tallyGames((D.recent[p.id]||[]).slice(-10),stat,line);
+    const tAll=tallyGames(D.recent[p.id]||[],stat,line);
+    const mu=+avgOf(p,stat,10);
+    const po=tAll.dec?rateOf(tAll.o,tAll.dec):0.5, pu=1-po;
     const r={p,stat,line,mu,po,pu,oo:odds[0]||null,uo:odds[1]||null,
+      rec:tAll.dec?`${tAll.o}/${tAll.dec}`:dash,
       side:p.out?"ruled out":(po>0.5?"over":"under"),
       edge:null,ev:null,kelly:0,hit:null};
     if(r.oo&&r.uo&&!p.out){
@@ -1522,8 +1505,9 @@ function priceSheet(){
   t.querySelectorAll(".name").forEach(n=>{
     n.onclick=()=>selectPlayerById(+n.dataset.id);
   });
-  const pos=out.filter(r=>r.ev>0).length;
-  $("#pastemsg").innerHTML=`${out.length} priced, ${pos} with positive EV`+
+  const pos=out.filter(r=>r.edge>0).length;
+  $("#pastemsg").innerHTML=`${out.length} read, ${pos} where his record `+
+    `beats the price`+
     (bad.length?` &middot; <span class="warn">${bad.length} not understood</span>`:"");
 }
 
@@ -1607,8 +1591,9 @@ function drawPlayer(){
   // Player tab quietly did not, so the two could disagree by six points
   // on the same player.
   const bq=(p.book&&p.book[stat])?p.book[stat]:null;
-  const line=isFinite(typed)?typed:(bq?bq.line:p.line[stat]);
-  const lineSrc=isFinite(typed)?"typed":(bq?"book":"model");
+  const lf=lineFor(p,stat);
+  const line=isFinite(typed)?typed:(lf.line==null?0.5:lf.line);
+  const lineSrc=isFinite(typed)?"typed":lf.src;
   const mu=p.mu[stat], po=pOver(mu,c,line), push=pPush(mu,c,line);
   const win=defWindow(), N=+$("#plast").value||10;
   const g=D.recent[p.id]||[];
@@ -1662,14 +1647,14 @@ function drawPlayer(){
     <th>Record</th><th>Opp D</th></tr></thead><tbody>`;
   if(!p.out) SK.forEach(k=>{
     const bk=(p.book&&p.book[k])?p.book[k]:null;
-    const L=bk?bk.line:p.line[k];
-    const t=tallyGames((D.recent[p.id]||[]).slice(-10),k,L);
+    const L=lineFor(p,k).line;
+    const t=L==null?{dec:0}:tallyGames((D.recent[p.id]||[]).slice(-10),k,L);
     mh+=`<tr${k===stat?' style="background:var(--panel2)"':''}>
       <td class="l">${LBL[k]}</td><td class="num">${avgOf(p,k,10)}</td>
       <td class="num dim">${avgOf(p,k,99)}</td>
       <td class="num dim">${bestOf(p,k)}</td>
-      <td class="num">${L.toFixed(1)}<span class="src ${bk?"book":""}">${
-        bk?"book":"model"}</span></td>
+      <td class="num">${L==null?dash:L.toFixed(1)}<span class="src ${
+        bk?"book":""}">${bk?"book":"median"}</span></td>
       <td class="num">${t.dec?`${t.o}/${t.dec}`:dash}</td>
       <td class="num">${rankCell(p.opp,k,win,p.pos)}</td></tr>`;
   });
@@ -1742,6 +1727,24 @@ function splitRow(label,t,note){
     <td class="num ${cl}">${(100*pct0).toFixed(0)}%</td>
     <td class="l dim2">${note||""}</td></tr>`;
 }
+/* With no projection behind the page, a player with no quote still
+   needs a number to be measured against. His own median is the honest
+   one: half his games cleared it by construction, so a record against
+   it describes his spread rather than anyone's opinion. Rounded to the
+   half, the way a book would write it. */
+function medianLine(p,stat){
+  const g=D.recent[p.id]||[];
+  if(!g.length)return null;
+  const v=g.map(x=>actual(x,stat)).sort((a,b)=>a-b);
+  const m=v.length%2?v[(v.length-1)/2]:(v[v.length/2-1]+v[v.length/2])/2;
+  return Math.max(0.5,Math.round(m*2)/2);
+}
+function lineFor(p,stat){
+  const q=(p.book&&p.book[stat])?p.book[stat]:null;
+  if(q)return {line:q.line,src:"book",nb:q.n,q};
+  const m=medianLine(p,stat);
+  return {line:m==null?null:m,src:"median",nb:0,q:null};
+}
 const avgOf=(p,stat,n)=>{
   const g=(D.recent[p.id]||[]).slice(-n);
   return g.length?(g.reduce((a,x)=>a+actual(x,stat),0)/g.length).toFixed(1)
@@ -1787,7 +1790,7 @@ function splitsPanel(p,stat,line,src,nb){
     <h3>${LBL[stat]} at ${line.toFixed(1)}<span class="src ${src}"
       title="${src==="book"?nb+" book"+(nb===1?"":"s")+" on this number":
         src==="typed"?"the number you typed":
-        "no book quoting it -- the model's own even-money line"}">${src}</span>
+        "no book quoting it -- the middle of his own last twenty"}">${src}</span>
       <span class="dim">&middot; how often he has cleared it</span></h3>
     <table><thead><tr><th class="l">Split</th><th>Record</th><th>Hit</th>
       <th class="l"></th></tr></thead><tbody>${rows.join("")}</tbody></table>
@@ -1874,40 +1877,63 @@ function defencePanel(p,stat,win){
 
 /* ---------- method ---------- */
 function drawMethod(){
-  const m=D.meta, s=D.scorecard;
-  const skill=s?`Out of sample it scores a Brier of ${s.brier} against
-    ${s.brier_base} for simply quoting the base rate, and every probability
-    decile lands within a point of where it should. The full scorecard,
-    including the ablation and the accuracy tables, is written to
-    <span class="num">out/scorecard.txt</span> on every run.`:"";
+  const m=D.meta;
   $("#method").innerHTML=`
   <div class="longform" style="max-width:72ch">
-  <p><b>Projection.</b> A per-minute rate for each market, exponentially
-  weighted over the player's past games, times projected minutes, times game
-  pace, times the opponent's allowed rate per possession, times a league
-  home/away factor. Pace and defence are kept separate so a fast team is not
-  mistaken for a leaky one.</p>
-  <p><b>Minutes.</b> Minutes conditional on playing, from a short-memory
-  average, then adjusted so the team's expected minutes add to 240 &mdash;
-  with the correction weighted by role, so a 38-minute starter barely moves
-  and the bench absorbs it. A player ruled out frees his minutes for everyone
-  behind him. In October this is the shakiest input in the model.</p>
-  <p><b>Distribution.</b> Negative binomial with a fitted mean&ndash;variance
-  power law, Var = &mu; + c&middot;&mu;<sup>p</sup>, because basketball counts
-  are overdispersed but not quadratically so: the textbook one-parameter
-  version gives a 23-point scorer twice the variance the data shows. A
-  monotone correction on P(over), fitted on the training season, straightens
-  out the remaining skew.</p>
-  <p><b>Honesty.</b> Constants are fitted on 2024-25 only; everything the
-  model is judged on comes from seasons it never saw. ${skill}</p>
-  <p><b>What it cannot tell you.</b> ESPN publishes game lines but not player
-  props, so this model has never been scored against a closing prop line.
-  Calibration says the probabilities are honest; it does not say they beat a
-  book. Until you log your own closing numbers, treat every edge here as
-  unproven.</p>
+  <p><b>What this is.</b> A record keeper, not a forecaster. For every
+  player on tonight's slate it holds his last ${RECENT_N} games and asks
+  one question of them: how often did he clear this number? Nothing here
+  predicts what he will do.</p>
+
+  <p><b>The number.</b> Where a book is quoting the market, that is the
+  number used, and the card says which book and how many are on it.
+  Where none is, the page falls back to the middle of his own last
+  ${RECENT_N} &mdash; marked <span class="src">median</span>. By
+  construction he cleared that half the time, so a record against it
+  describes his spread rather than anyone's opinion of him.</p>
+
+  <p><b>The slices.</b> His last five, ten and twenty; home and away;
+  every meeting with tonight's opponent inside the window; and the games
+  that a team-mate who is out tonight also missed. That last one needs
+  to know who dressed, so it counts only the games where that is on
+  record, and says how many those were. A player's record without the
+  man who normally takes his touches is a fact about his role, which is
+  the one thing a season average cannot tell you.</p>
+
+  <p><b>What a record is not.</b> It is tonight's number carried
+  backwards over games that were played against different numbers. A
+  perfect record usually means the line has since moved to meet it, not
+  that the market has missed something. And it is a small sample: three
+  from three is what a coin does one time in eight, ten from ten one
+  time in a thousand &mdash; which sounds impressive until you remember
+  how many players and markets are being searched. Records far enough
+  from even to be unlikely from a 50/50 line are marked; the rest are
+  description, not evidence.</p>
+
+  <p><b>The slip.</b> Each leg's chance is that player's own record at
+  that number, shrunk towards even by a prior worth four games, so ten
+  from ten reads 86% rather than certainty. The legs are then combined
+  through a Gaussian copula with the correlations measured between them
+  &mdash; on the games those players actually played, matched by date,
+  converted to normal scores and shrunk by sample size. Multiplying the
+  legs instead would assume they are strangers, and two markets on one
+  player never are. The naive number is shown beside the real one.</p>
+
+  <p><b>Minutes and availability.</b> Both come from the injury report
+  and his recent rotation, and both are reported rather than baked into
+  anything. A player ruled out stays on the board, greyed, with the
+  minutes his team has to replace.</p>
+
+  <p><b>Defence.</b> What each opponent concedes per 100 possessions in
+  this market, ranked against the other 29, and separately against the
+  position this player is listed at. The ranks are today's, not the
+  rank on the night each past game was played, so they are context for
+  tonight rather than an explanation of the log.</p>
+
   <p class="dim2">Built ${m.built} from the ${m.source}${m.book?
     ", with prices from The Odds API":""}.
-  ${m.seasons.map(x=>`${x.season-1}-${String(x.season).slice(2)}: ${x.games} games`).join(" &middot; ")}.</p>
+  ${m.seasons.map(x=>`${x.season-1}-${String(x.season).slice(2)}: ${x.games} games`).join(" &middot; ")}.
+  Nothing here is advice, and a record is not a reason.</p>
   </div>`;
 }
 
@@ -2104,12 +2130,12 @@ function wireRefresh(){
 function showTab(t){
   document.querySelectorAll("nav button").forEach(b=>
     b.classList.toggle("on",b.dataset.t===t));
-  ["trends","props","slip","sheet","player","method"].forEach(x=>
+  ["home","trends","slip","sheet","player","method"].forEach(x=>
     $("#t-"+x).classList.toggle("hide",x!==t));
   if(t==="method")drawMethod();
   if(t==="player")drawPlayer();
   if(t==="trends")drawTrends();
-  if(t==="props")drawProps();
+  if(t==="home")drawHome();
   if(t==="slip")drawSlip();
 }
 function init(){
@@ -2177,13 +2203,14 @@ function init(){
     tSort="hit"; tDir=-1; drawTrends();
   };
   ["pxgame","pxbooks","pxedge"].forEach(id=>
-    $("#"+id).addEventListener("input",drawProps));
+    $("#"+id).addEventListener("input",drawSheets));
   $("#pxreset").onclick=()=>{
-    $("#pxgame").value=""; $("#pxbooks").value="3"; $("#pxedge").value=0;
-    drawProps();
+    $("#pxgame").value=""; $("#pxbooks").value="3"; $("#pxedge").value=70;
+    drawSheets();
   };
   saveSlip();
   wireRefresh();
+  drawHome();
   drawTrends();
 }
 init();
