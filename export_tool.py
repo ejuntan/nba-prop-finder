@@ -136,6 +136,18 @@ def main():
             [int(round(getattr(r, k))) for k in BOX]
             for r in g.itertuples(index=False)]
 
+    # Who actually played, per team and date, over the window the game
+    # logs cover. It is what makes a "without X" split possible: a
+    # player's games without a team-mate are the ones whose date is
+    # missing from that team-mate's own list. Ids only, so it costs a
+    # few tens of kilobytes rather than repeating names.
+    teams_tonight = set(sl.team)
+    win = f[f.player_id.isin(sl.player_id) | f.team.isin(teams_tonight)]
+    dates = sorted(win.date.unique())[-RECENT * 2:]
+    played = {}
+    for (team, day), grp in win[win.date.isin(dates)].groupby(["team", "date"]):
+        played.setdefault(team, {})[day] = [int(x) for x in grp.player_id]
+
     players = []
     for r in sl.itertuples(index=False):
         players.append({
@@ -186,6 +198,7 @@ def main():
                       "shape": [r2(v, 5) for v in cal[s]["shape"]]}
                   for s in SHOW},
         "games": games, "recent_cols": rcols, "recent": recent,
+        "played": played,
         "players": players,
         "defense": defense_block(con),
         "scorecard": scorecard(),

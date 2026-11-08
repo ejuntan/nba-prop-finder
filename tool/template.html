@@ -243,6 +243,23 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
 .strip i{width:7px;height:13px;border-radius:2px;display:inline-block}
 .strip i.o{background:var(--over)} .strip i.u{background:var(--under)}
 .strip i.p{background:var(--dim2)}
+/* cheatsheet cards: one prop, one slice, one record */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
+  gap:10px;margin-bottom:16px}
+.card{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r);padding:11px 13px;box-shadow:var(--sh)}
+.card-top{display:flex;align-items:start;gap:8px;margin-bottom:6px}
+.card-top>div{flex:1;min-width:0}
+.card-top b{display:block;font-size:13.5px;font-weight:600;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-top .dim{font-size:11.5px}
+.card-prop{font-size:12.5px;color:var(--ink);margin-bottom:8px}
+.card-prop .num{margin-left:4px;font-family:var(--mono)}
+.card-prop .dim2{font-size:11px;margin-left:3px}
+.card-hit{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.hitpct{font-size:19px;font-weight:650;letter-spacing:-.3px;
+  font-family:var(--mono);font-variant-numeric:tabular-nums}
+.card-hit .dim2{font-size:11px}
 .rec{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .rec b{font-weight:600}
 .src{font-size:9.5px;color:var(--dim2);text-transform:uppercase;
@@ -378,33 +395,29 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
       <label>Min books <select id="pxbooks">
         <option value="3" selected>3+</option><option value="1">any</option>
       </select></label>
-      <label>Min edge <input type="number" id="pxedge" value="0" step="1"
-        style="width:62px"> %</label>
+      <label>Hit at least <input type="number" id="pxedge" value="70"
+        step="5" style="width:62px"> %</label>
       <button class="ghost" id="pxreset">Reset</button>
     </div>
-    <div class="hint"><span>Every market a book is quoting tonight, ranked
-      by the model's edge against the other books on the same number.</span>
+    <div class="hint"><span>Every market a book is quoting tonight, cut
+      four ways and ranked by how often it has actually happened.</span>
       <span class="more" data-fold="x1">how to read it</span></div>
     <div class="longform hide" id="f-x1">
-      <p>Two different questions get confused in prop betting and this
-      keeps them apart. <b>Is the price good against the book offering
-      it?</b> Devig that book's own two-way market and compare. It is the
-      number most tools show, and it is the weaker one: a book that hangs
-      a bad line on both sides looks like enormous edge to a model that
-      is wrong in the same direction.</p>
-      <p><b>Is the price good against the market?</b> Take the median
-      no-vig probability of every book quoting that same number and
-      compare with that. The consensus is a far better estimate of the
-      truth than any single book, so this is the honest figure, and it is
-      the one ranked here. Where fewer than three books are quoting there
-      is no consensus, and those markets are listed separately rather
-      than quietly ranked alongside.</p>
-      <p>The second table is the one worth reading carefully. A claimed
-      edge over ten points against a real consensus is nearly always the
-      model being wrong, not the market: a role that has changed, minutes
-      it has not caught up with, a player it knows too little about. Four
-      markets on one player all claiming the same thing is one
-      disagreement, not four.</p>
+      <p>Each card is one quoted prop and one slice of the player's own
+      record against that number: his last ten games, every meeting with
+      tonight's opponent inside the logs, the games on this side of the
+      fixture, and the games a team-mate who is out tonight also missed.
+      The squares are those games oldest to newest, blue where the number
+      was cleared.</p>
+      <p>Two things these records are not. They are not a forecast &mdash;
+      the line is tonight's, carried backwards over games that were played
+      against different numbers, so a perfect record often means the line
+      has since moved to meet it. And they are not evidence on their own:
+      three of three is what a coin does one time in eight, and a slice
+      only has to clear three games to appear here.</p>
+      <p>Where fewer than three books are quoting a number, that number
+      is one book's opinion rather than a market. The <b>Min books</b>
+      control is there to drop those.</p>
     </div>
   </div>
   <div id="pxbody"></div>
@@ -871,6 +884,7 @@ function selectPlayerById(id){
    quoting it, and how the model has scored out of sample. Each one is a
    number with the thing that qualifies it underneath, because a number
    on its own invites a reader to assume the best about it. */
+const RECENT_N=Math.max(0,...Object.values(D.recent||{}).map(g=>g.length));
 const DATEF=d=>{
   const [y,mo,da]=d.split("-").map(Number);
   return new Date(Date.UTC(y,mo-1,da)).toLocaleDateString("en-GB",
@@ -892,18 +906,18 @@ function drawHead(){
     +(MODE==="live"?`<span class="chip">rebuilt nightly</span>`:"");
 
   const books=m.book?m.book.books.length:0;
-  const skill=s?100*(1-s.brier/s.brier_base):null;
+  const logged=Object.values(D.recent||{})
+    .reduce((a,g)=>a+g.length,0).toLocaleString();
   const tiles=[
     ["Tonight", m.games, "games",
      `${DATEF(m.slate)}${stale?" &mdash; already played":""}`],
-    ["Players priced", live, "",
+    ["Players", live, "on the board",
      out?`${out} more ruled out, kept on the board`:"nobody ruled out"],
     ["Market", m.book?m.book.props:"&mdash;", m.book?"markets":"",
      m.book?`quoted by ${books} book${books===1?"":"s"}`
            :"no lines fetched for this slate"],
-    ["Model skill", skill===null?"&mdash;":`+${skill.toFixed(0)}%`, "",
-     s?`Brier ${s.brier} against ${s.brier_base} for the base rate`
-      :"no scorecard yet"],
+    ["Games on record", logged, "in the logs",
+     `up to ${RECENT_N} a player, the window every record is cut from`],
   ];
   $("#kpis").innerHTML=tiles.map(([k,v,u,c])=>
     `<div class="kpi"><div class="k">${k}</div>
@@ -1076,7 +1090,7 @@ function quotes(){
       const mo=q.cons==null?dv[0]:q.cons, mkU=1-mo;
       const eo=evD(po,dO), eu=evD(pu,dU);
       const over=eo>=eu;
-      out.push({p,stat,q,mu,line:q.line,
+      out.push({p,stat,q,mu,line:q.line,dOver:dO,dUnder:dU,
         side:over?"over":"under",
         odds:over?dO:dU,
         book:over?q.over_book:q.under_book,
@@ -1119,30 +1133,97 @@ function propTable(title,note,rows){
     <div class="scroll"><table><thead>${head}</thead><tbody>`
     +rows.map((r,i)=>propRow(r,i+1)).join("")+`</tbody></table></div>`;
 }
+/* Cheatsheets: every quoted prop, cut the way a stats tool cuts it.
+   Not ranked by what a model thinks the price is worth -- ranked by how
+   often the thing has actually happened, which is the question being
+   asked. The price is shown because it is the number the record is
+   measured against, not because anything here is calling it value. */
+const SHEETS=[
+  ["Recent form","the last ten games, whoever they were against",
+   r=>r.last10],
+  ["Against tonight's opponent","every meeting inside the game logs",
+   r=>r.vs],
+  ["Home and away","only the games on this side of the fixture",
+   r=>r.side_games],
+  ["With a team-mate out","his record in the games that man missed",
+   r=>r.without],
+];
+function propSlices(q){
+  const p=q.p, stat=q.stat, line=q.line;
+  const log=D.recent[p.id]||[];
+  const byDate=(D.played||{})[p.team]||{};
+  const outs=D.players.filter(x=>x.out&&x.team===p.team&&x.id!==p.id)
+    .sort((a,b)=>b.base_min-a.base_min);
+  let without=null, whom=null;
+  for(const m of outs){
+    const g=log.filter(x=>byDate[x.d]&&byDate[x.d].indexOf(m.id)<0);
+    const t=tallyGames(g,stat,line);
+    if(t.dec>=3&&(!without||t.dec>without.dec)){ without=t; whom=m; }
+  }
+  return {
+    last10:tallyGames(log.slice(-10),stat,line),
+    vs:tallyGames(log.filter(g=>g.o===p.opp),stat,line),
+    side_games:tallyGames(log.filter(g=>!!g.h===!!p.home),stat,line),
+    without, whom,
+  };
+}
+function sheetCard(r,t,label){
+  const pctv=t.o/t.dec, over=pctv>=0.5;
+  const side=over?"over":"under";
+  const hits=over?t.o:t.dec-t.o;
+  const price=over?r.dOver:r.dUnder;
+  const bk=over?r.q.over_book:r.q.under_book;
+  const key=legKey(r.p.id,r.stat,side);
+  return `<div class="card">
+    <div class="card-top">
+      <div><b class="name" data-id="${r.p.id}">${r.p.name}</b>
+        <span class="dim">${matchup(r.p)}</span></div>
+      <button class="add${inSlip(key)?" on":""}" data-leg="${key}"
+        >${inSlip(key)?"\u2713":"+"}</button>
+    </div>
+    <div class="card-prop">${side} ${r.line.toFixed(1)} ${LBL[r.stat]}
+      <span class="num dim">${fmtD(price)}</span>
+      <span class="dim2">${bk}${r.q.n>1?` +${r.q.n-1}`:""}</span></div>
+    <div class="card-hit">
+      <span class="rec ${hits===t.dec?"good":""}"><b>${hits}</b>/${t.dec}</span>
+      <span class="hitpct">${(100*Math.max(pctv,1-pctv)).toFixed(0)}%</span>
+      <span class="dim2">${label}</span></div>
+    ${stripOf(r.gl,r.stat,r.line)}</div>`;
+}
 function drawProps(){
   const gid=$("#pxgame").value, minB=+$("#pxbooks").value,
-        minE=(+$("#pxedge").value||0)/100;
-  let rows=quotes().filter(r=>(!gid||r.p.gid==gid)&&r.edge>=minE);
+        minPct=(+$("#pxedge").value||0)/100;
+  const all=quotes();
   const body=$("#pxbody");
-  if(!quotes().length){
+  if(!all.length){
     body.innerHTML=`<div class="panel"><h3>Nothing is quoted tonight</h3>
-      <div class="hint"><span>No book has been fetched for this slate, so
-      there is no market to measure against. The projections are on the
-      <b>Trends</b> and <b>Player</b> tabs either way; what is missing
-      here is the other half of the comparison, not the model.</span>
-      </div></div>`;
+      <div class="hint"><span>A record needs a number to be measured
+      against, and no book has been fetched for this slate. The game
+      logs are still on the <b>Player</b> tab.</span></div></div>`;
     return;
   }
-  const cons=rows.filter(r=>r.cons&&r.n>=minB).sort((a,b)=>b.edge-a.edge);
-  const sane=cons.filter(r=>r.edge<SUSPECT), wild=cons.filter(r=>r.edge>=SUSPECT);
-  const thin=rows.filter(r=>!r.cons||r.n<minB).sort((a,b)=>b.edge-a.edge);
-  body.innerHTML=
-    propTable("Against the consensus",
-      `&middot; ${sane.length} markets, ${minB}+ books on the number`,sane)
-    +propTable(`<span class="warn">Claiming more than ${100*SUSPECT}%</span>`,
-      "&middot; read these as a bug report on the model, not a bet",wild)
-    +propTable("One or two books only",
-      "&middot; no consensus to measure against &mdash; suspect",thin);
+  const rows=all.filter(r=>(!gid||r.p.gid==gid)&&r.n>=minB)
+    .map(r=>Object.assign(r,{gl:(D.recent[r.p.id]||[]).slice(-10)},
+                          propSlices(r)));
+  let html="";
+  SHEETS.forEach(([title,note,pick])=>{
+    const got=rows.map(r=>({r,t:pick(r)}))
+      .filter(x=>x.t&&x.t.dec>=3)
+      .map(x=>Object.assign(x,{s:Math.max(x.t.o,x.t.dec-x.t.o)/x.t.dec}))
+      .filter(x=>x.s>=Math.max(minPct,0.7))
+      .sort((a,b)=>b.s-a.s||b.t.dec-a.t.dec)
+      .slice(0,12);
+    if(!got.length)return;
+    html+=`<div class="panel"><h3>${title}
+      <span class="dim">&middot; ${note}</span></h3></div>
+      <div class="cards">`+got.map(x=>sheetCard(x.r,x.t,
+        pick===SHEETS[3][2]&&x.r.whom?`without ${x.r.whom.name}`
+        :title.toLowerCase())).join("")+`</div>`;
+  });
+  body.innerHTML=html||`<div class="panel"><h3>No record stands out</h3>
+    <div class="hint"><span>Nothing quoted tonight has cleared its number
+    in at least 70% of a slice with three or more games in it. Lower the
+    threshold, or read the whole board on <b>Trends</b>.</span></div></div>`;
   body.querySelectorAll(".name").forEach(n=>{
     n.onclick=()=>selectPlayerById(+n.dataset.id);});
   body.querySelectorAll(".add").forEach(b=>{
@@ -1520,7 +1601,14 @@ function drawPlayer(){
   if($("#pq").value!==p.name) $("#pq").value=p.name;
   const stat=$("#pstat").value, c=D.calib[stat];
   const typed=parseFloat($("#pline").value);
-  const line=isFinite(typed)?typed:p.line[stat];
+  // The number to measure against is the one a book is offering. Only
+  // where none is does the page fall back to its own, and the header
+  // says which it used -- the Trends tab has always done this and the
+  // Player tab quietly did not, so the two could disagree by six points
+  // on the same player.
+  const bq=(p.book&&p.book[stat])?p.book[stat]:null;
+  const line=isFinite(typed)?typed:(bq?bq.line:p.line[stat]);
+  const lineSrc=isFinite(typed)?"typed":(bq?"book":"model");
   const mu=p.mu[stat], po=pOver(mu,c,line), push=pPush(mu,c,line);
   const win=defWindow(), N=+$("#plast").value||10;
   const g=D.recent[p.id]||[];
@@ -1559,33 +1647,37 @@ function drawPlayer(){
             (g.reduce((a,x)=>a+actual(x,stat),0)/g.length).toFixed(2):"&mdash;";})()}
           <span class="dim">over his last ${(D.recent[p.id]||[]).length}</span></div>
         <div>Priced</div><div class="num bad">no &mdash; he is out</div>`:`
-        <div>${LBL[stat]}</div><div class="num"><b>${mu.toFixed(2)}</b>
-          &plusmn; ${sdOf(mu,c).toFixed(2)}
-          <span class="dim">&middot; 10&ndash;90% ${quant(mu,c,0.1)}&ndash;${quant(mu,c,0.9)}</span></div>
-        <div>At ${line.toFixed(1)}</div><div class="num">over ${pct(po)}
-          <span class="dim">/</span> under ${pct(1-po-push)}
-          ${push>0.0005?`<span class="dim">&middot; push ${pct(push)}</span>`:""}</div>
-        <div>Fair price</div><div class="num">O ${fmtD(p2d(po))}
-          <span class="dim">/</span> U ${fmtD(p2d(1-po-push))}
-          <span class="dim">&middot; even money at ${fairLine(mu,c).toFixed(1)}</span></div>`)+`
+        <div>${LBL[stat]}</div><div class="num"><b>${avgOf(p,stat,10)}</b>
+          <span class="dim">a game over his last ${Math.min(10,(D.recent[p.id]||[]).length)}
+          &middot; ${avgOf(p,stat,99)} over the whole log</span></div>
+        <div>Best and worst</div><div class="num">${rangeOf(p,stat)}
+          <span class="dim">in the log</span></div>
+        <div>Tonight's number</div><div class="num">${line.toFixed(1)}
+          <span class="dim">${lineSrc==="book"?`from ${bq.n} book${bq.n===1?"":"s"}`
+            :lineSrc==="typed"?"typed":"no book quoting it"}</span></div>`)+`
       </div>
     </div>`);
-  let mh=p.out?"":`<table><thead><tr><th class="l">Market</th><th>Proj</th><th>SD</th>
-    <th>Even-money line</th><th>Over there</th><th>Fair O</th>
-    <th>Opp D</th></tr></thead><tbody>`;
+  let mh=p.out?"":`<table><thead><tr><th class="l">Market</th>
+    <th>Last 10</th><th>Whole log</th><th>Best</th><th>Line</th>
+    <th>Record</th><th>Opp D</th></tr></thead><tbody>`;
   if(!p.out) SK.forEach(k=>{
-    const cc=D.calib[k], m=p.mu[k], L=fairLine(m,cc), q=pOver(m,cc,L);
+    const bk=(p.book&&p.book[k])?p.book[k]:null;
+    const L=bk?bk.line:p.line[k];
+    const t=tallyGames((D.recent[p.id]||[]).slice(-10),k,L);
     mh+=`<tr${k===stat?' style="background:var(--panel2)"':''}>
-      <td class="l">${LBL[k]}</td><td class="num">${m.toFixed(2)}</td>
-      <td class="num dim">${sdOf(m,cc).toFixed(2)}</td>
-      <td class="num">${L.toFixed(1)}</td><td class="num">${pct(q)}</td>
-      <td class="num dim">${fmtD(p2d(q))}</td>
+      <td class="l">${LBL[k]}</td><td class="num">${avgOf(p,k,10)}</td>
+      <td class="num dim">${avgOf(p,k,99)}</td>
+      <td class="num dim">${bestOf(p,k)}</td>
+      <td class="num">${L.toFixed(1)}<span class="src ${bk?"book":""}">${
+        bk?"book":"model"}</span></td>
+      <td class="num">${t.dec?`${t.o}/${t.dec}`:dash}</td>
       <td class="num">${rankCell(p.opp,k,win,p.pos)}</td></tr>`;
   });
   if(!p.out){
     mh+="</tbody></table>";
     const mw=el("div","hide"); mw.id="f-markets"; mw.innerHTML=mh;
-    head.append(foldBtn("f-markets","Every market",false), mw);
+    head.append(foldBtn("f-markets","Every market, his record in each",
+                        false), mw);
   }
   box.append(head);
 
@@ -1618,8 +1710,92 @@ function drawPlayer(){
     panel.append(el("div","",r));
     box.append(panel);
   }
+  box.append(splitsPanel(p,stat,line,lineSrc,bq?bq.n:0));
   box.append(defencePanel(p,stat,win));
   $("#pcard").innerHTML=""; $("#pcard").append(box);
+}
+
+/* The same number, cut several ways. Recent form is the headline
+   everywhere; the cuts under it are where a record stops being one
+   number and starts being a description -- at home, against tonight's
+   opponent, and with a team-mate missing.
+
+   The last of those is the one worth having. When a rotation player is
+   out, the minutes and the shots go somewhere, and a player's record in
+   the games that man missed is a fact about his role rather than a
+   guess at it. It is computed only from dates where we know who dressed,
+   so a thin answer is a small n rather than a wrong one. */
+function tallyGames(gs,stat,line){
+  let o=0,u=0,p=0;
+  gs.forEach(g=>{const v=actual(g,stat);
+    if(v===line)p++; else if(v>line)o++; else u++;});
+  return {o,u,p,n:gs.length,dec:o+u};
+}
+function splitRow(label,t,note){
+  if(!t.dec)return `<tr><td class="l">${label}</td>
+    <td class="num">${dash}</td><td class="num">${dash}</td>
+    <td class="l dim2">${note||"no games on record"}</td></tr>`;
+  const pct0=t.o/t.dec;
+  const cl=beyondNoise(t)?(pct0>0.5?"good":"bad"):"";
+  return `<tr><td class="l">${label}</td>
+    <td class="num rec ${cl}"><b>${t.o}</b>/${t.dec}</td>
+    <td class="num ${cl}">${(100*pct0).toFixed(0)}%</td>
+    <td class="l dim2">${note||""}</td></tr>`;
+}
+const avgOf=(p,stat,n)=>{
+  const g=(D.recent[p.id]||[]).slice(-n);
+  return g.length?(g.reduce((a,x)=>a+actual(x,stat),0)/g.length).toFixed(1)
+                 :"\u2014";
+};
+const bestOf=(p,stat)=>{
+  const g=D.recent[p.id]||[];
+  return g.length?Math.max.apply(null,g.map(x=>actual(x,stat))):"\u2014";
+};
+const rangeOf=(p,stat)=>{
+  const g=D.recent[p.id]||[];
+  if(!g.length)return "\u2014";
+  const v=g.map(x=>actual(x,stat));
+  return `${Math.max.apply(null,v)} <span class="dim">/</span> ${Math.min.apply(null,v)}`;
+};
+function splitsPanel(p,stat,line,src,nb){
+  const log=D.recent[p.id]||[];
+  const rows=[];
+  const last=n=>log.slice(-n);
+  [5,10,20].forEach(n=>{
+    const g=last(n);
+    if(g.length)rows.push(splitRow(`Last ${g.length}`,
+      tallyGames(g,stat,line),""));
+  });
+  rows.push(splitRow("At home",tallyGames(log.filter(g=>g.h),stat,line),""));
+  rows.push(splitRow("Away",tallyGames(log.filter(g=>!g.h),stat,line),""));
+  const vs=log.filter(g=>g.o===p.opp);
+  rows.push(splitRow(`Against ${p.opp}`,tallyGames(vs,stat,line),
+    vs.length?"":"they have not met inside this window"));
+
+  // Team-mates ruled out tonight, and his record when they were absent.
+  const byDate=(D.played||{})[p.team]||{};
+  const known=log.filter(g=>byDate[g.d]);
+  const outs=D.players.filter(q=>q.out&&q.team===p.team&&q.id!==p.id)
+    .sort((a,b)=>b.base_min-a.base_min).slice(0,4);
+  outs.forEach(q=>{
+    const g=known.filter(x=>byDate[x.d].indexOf(q.id)<0);
+    rows.push(splitRow(`Without ${q.name}`,tallyGames(g,stat,line),
+      q.status?q.status.toLowerCase():"out tonight"));
+  });
+  const miss=log.length-known.length;
+  return el("div","panel",`
+    <h3>${LBL[stat]} at ${line.toFixed(1)}<span class="src ${src}"
+      title="${src==="book"?nb+" book"+(nb===1?"":"s")+" on this number":
+        src==="typed"?"the number you typed":
+        "no book quoting it -- the model's own even-money line"}">${src}</span>
+      <span class="dim">&middot; how often he has cleared it</span></h3>
+    <table><thead><tr><th class="l">Split</th><th>Record</th><th>Hit</th>
+      <th class="l"></th></tr></thead><tbody>${rows.join("")}</tbody></table>
+    <div class="hint"><span>Bold where the record is far enough from even
+      to be unlikely from a 50/50 line. ${outs.length?`Team-mate splits
+      cover the ${known.length} of his last ${log.length} games where we
+      know who dressed${miss?`; ${miss} are unaccounted for`:""}.`
+      :"Nobody on his team is ruled out tonight."}</span></div>`);
 }
 
 function defencePanel(p,stat,win){
@@ -1652,8 +1828,8 @@ function defencePanel(p,stat,win){
           <b>${pa[0].toFixed(2)}</b> <span class="dim">per 100 poss &middot;</span>
           <span class="${rankCls(pa[1])}">${ord(pa[1])} of ${NTEAMS}</span>
           <span class="dim">${soft(pa[1])}, ${sgn(pa[2]-1)} vs league</span></div>`:""}
-        <div>In the projection</div><div class="num">${sgn(p.oppf[stat]-1)}
-          <span class="dim">the model's own factor</span></div>
+        <div>Against the league</div><div class="num">${sgn(pa?pa[2]-1:1-1)}
+          <span class="dim">what they concede at this position</span></div>
       </div>
     </div>`);
   const hasPos=!!(p.pos&&d.by_pos&&d.by_pos[p.pos]);
