@@ -419,7 +419,6 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
   <div class="subnav">
     <button data-s="player" class="on">Player</button>
     <button data-s="team">Team</button>
-    <button data-s="alt">Alternate lines</button>
   </div>
   <div id="tt" class="cards"></div>
 </section>
@@ -1206,38 +1205,6 @@ function parlayCard(c){
                :`${pct(-gap)} less likely together &mdash; they fight`)}</span></div>
   </div>`;
 }
-/* Alternate lines: round thresholds nobody is quoting, which is why
-   they are interesting -- a record at "25+ points" is the same question
-   the cards ask, asked where the market is silent. */
-const ALT_STEPS={pts:[10,15,20,25,30,35],reb:[4,6,8,10,12],
-  ast:[2,4,6,8,10],fg3m:[1,2,3,4,5],pra:[20,25,30,35,40,45]};
-function altCards(){
-  const out=[];
-  D.players.filter(p=>!p.out&&p.min>=18).forEach(p=>{
-    const log=D.recent[p.id]||[];
-    if(log.length<8)return;
-    Object.keys(ALT_STEPS).forEach(stat=>{
-      ALT_STEPS[stat].forEach(k=>{
-        const hits=log.filter(g=>actual(g,stat)>=k).length;
-        if(hits<log.length*0.8||hits<8)return;
-        out.push({p,stat,k,hits,n:log.length,s:hits/log.length});
-      });
-    });
-  });
-  return out.sort((a,b)=>b.s-a.s||b.k-a.k).slice(0,24);
-}
-function altCard(c){
-  return `<div class="card">
-    <div class="card-top"><div>
-      <b class="name" data-id="${c.p.id}">${c.p.name}</b>
-      <span class="dim">${c.p.home?"vs":"@"} ${c.p.opp}</span></div></div>
-    <div class="card-prop">${c.k}+ ${LBL[c.stat]}
-      <span class="src">no book</span></div>
-    <div class="card-hit">
-      <span class="rec ${c.hits===c.n?"good":""}"><b>${c.hits}</b>/${c.n}</span>
-      <span class="hitpct">${(100*c.s).toFixed(0)}%</span>
-      <span class="dim2">of the window</span></div></div>`;
-}
 function drawParlay(){
   const kind=$("#plkind").value, floor=+$("#plmin").value;
   let c=parlayCards(floor);
@@ -1257,15 +1224,6 @@ function drawTrends(){
     box.innerHTML=c.length?c.slice(0,24).map(teamCard).join("")
       :`<div class="panel"><div class="hint"><span>Not enough team games
         on record yet.</span></div></div>`;
-    return;
-  }
-  if(tSub==="alt"){
-    const c=altCards();
-    box.innerHTML=c.length?c.map(altCard).join("")
-      :`<div class="panel"><div class="hint"><span>Nobody has cleared a
-        round number often enough to list.</span></div></div>`;
-    box.querySelectorAll(".name").forEach(n=>{
-      n.onclick=()=>selectPlayerById(+n.dataset.id);});
     return;
   }
   let rows=trendRows().filter(r=>r.t.dec>=3);
