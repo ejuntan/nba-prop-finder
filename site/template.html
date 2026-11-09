@@ -351,10 +351,9 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
 <nav>
   <button data-t="home" class="on">Home</button>
   <button data-t="trends">Trends</button>
+  <button data-t="parlay">Parlay</button>
   <button data-t="slip">Slip <span class="badge hide" id="slipn"></span></button>
-  <button data-t="sheet">Sheet</button>
   <button data-t="player">Player</button>
-  <button data-t="method">Method</button>
 </nav>
 
 <div class="panel hide" id="rfpanel">
@@ -406,19 +405,20 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
       on its own means very little. <b>Beyond noise</b> keeps only the
       records far enough from even to be unlikely from a 50/50 line, and
       even those are a starting point for a look, not a signal.</p>
-      <p>Where a book is quoting the market's line is used and marked
-      <span class="src book">book</span>; otherwise it is the model's own
-      even-money number, marked <span class="src">model</span>, and a
-      record against it only describes form. A window of ten or twenty
-      reaches back across the season break and can include playoff games,
-      which are a different sport for minutes &mdash; <b>This season
-      only</b> cuts it to games since October.</p>
+      <p>Where a book is quoting, the market's line is used and marked
+      <span class="src book">book</span>. Otherwise the number is the
+      middle of his own last twenty, marked
+      <span class="src">median</span>: he cleared it half the time by
+      construction, so a record against it describes his spread rather
+      than anyone's opinion of him. A window of ten or twenty reaches
+      back across the season break and can include playoff games, which
+      are a different sport for minutes &mdash; <b>This season only</b>
+      cuts it to games since October.</p>
     </div>
   </div>
   <div class="subnav">
     <button data-s="player" class="on">Player</button>
     <button data-s="team">Team</button>
-    <button data-s="parlay">Parlay</button>
     <button data-s="alt">Alternate lines</button>
   </div>
   <div id="tt" class="cards"></div>
@@ -461,35 +461,49 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
   <div id="pxbody"></div>
 </section>
 
+<section id="t-parlay" class="hide">
+  <div class="panel">
+    <div class="bar-row">
+      <label>Show <select id="plkind">
+        <option value="all">both kinds</option>
+        <option value="sgp">same game only</option>
+        <option value="cross">different games only</option>
+      </select></label>
+      <label>Legs on at least <select id="plmin">
+        <option value="0.7">70%</option>
+        <option value="0.75" selected>75%</option>
+        <option value="0.8">80%</option>
+        <option value="0.9">90%</option>
+      </select></label>
+    </div>
+    <div class="hint"><span>Pairs built from the strongest records on the
+      slate, priced with the correlation between them measured rather
+      than assumed.</span>
+      <span class="more" data-fold="pl1">why that matters</span></div>
+    <div class="longform hide" id="f-pl1">
+      <p>Every parlay calculator multiplies its legs, which assumes they
+      are independent. Two markets on one player never are, and two
+      players in one game are not either &mdash; the pace that makes one
+      land makes the other likelier, while team-mates' shots come out of
+      the same pool. So each pair here is measured on the games those
+      players actually played, matched by date, and combined through a
+      copula with that correlation in it. The line under each pair says
+      which way it cut.</p>
+      <p>What these are not: a forecast. Each leg's chance is that
+      player's own record at tonight's number, carried backwards over
+      games played against different numbers, and shrunk towards even
+      because ten from ten is not certainty. A pair of strong records is
+      a pair of strong records. Multiplying two of them does not make
+      either more likely to repeat.</p>
+    </div>
+  </div>
+  <div id="plbody" class="cards"></div>
+</section>
+
 <section id="t-slip" class="hide">
   <div id="slipbody"></div>
 </section>
 
-<section id="t-sheet" class="hide">
-  <div class="panel">
-    <textarea id="paste" spellcheck="false" placeholder="jokic, pra, 44.5, 1.87, 1.95
-sga, pts, 32.5, 1.83, 2.00
-tatum, reb, 8.5"></textarea>
-    <div class="bar-row" style="margin-top:8px">
-      <button class="go" id="run">Price them</button>
-      <button class="ghost" id="demo">Fill from tonight</button>
-      <label><input type="checkbox" id="smore"> More columns</label>
-      <span class="dim" id="pastemsg"></span>
-    </div>
-    <div class="hint"><span>One per line:
-      <span class="num">player, stat, line, over, under</span> &mdash; odds
-      optional, decimal or American. The over column is his own record
-      at that number, shrunk, not a projection.</span>
-      <span class="more" data-fold="s1">stat keys</span></div>
-    <div class="longform hide" id="f-s1">
-      <p class="num" id="statkeys"></p>
-      <p>Names can be partial or initials &mdash; <span class="num">sga</span>,
-      <span class="num">jokic</span>, <span class="num">kd</span> all resolve.
-      Commas, tabs or two spaces separate the fields.</p>
-    </div>
-  </div>
-  <div class="scroll"><table id="st"></table></div>
-</section>
 
 <section id="t-player" class="hide">
   <div class="panel">
@@ -510,7 +524,6 @@ tatum, reb, 8.5"></textarea>
   <div id="pcard"></div>
 </section>
 
-<section id="t-method" class="hide"><div class="panel" id="method"></div></section>
 
 <footer id="foot"></footer>
 </div>
@@ -1154,11 +1167,12 @@ function teamCard(c){
 /* Parlays, built from the strongest records rather than offered by
    anyone -- and priced through the same copula as the slip, so a pair
    that is really one bet says so instead of looking twice as good. */
-function parlayCards(){
+function parlayCards(floor){
+  floor=floor||0.75;
   const pool=trendRows().filter(r=>r.t.dec>=5&&r.g.length)
     .map(r=>({r,side:r.t.o*2>=r.t.dec?"over":"under",
       s:Math.max(r.t.o,r.t.dec-r.t.o)/r.t.dec}))
-    .filter(x=>x.s>=0.75).sort((a,b)=>b.s-a.s).slice(0,14);
+    .filter(x=>x.s>=floor).sort((a,b)=>b.s-a.s).slice(0,14);
   const out=[];
   for(let i=0;i<pool.length;i++)for(let j=i+1;j<pool.length;j++){
     const A=pool[i], B=pool[j];
@@ -1224,6 +1238,16 @@ function altCard(c){
       <span class="hitpct">${(100*c.s).toFixed(0)}%</span>
       <span class="dim2">of the window</span></div></div>`;
 }
+function drawParlay(){
+  const kind=$("#plkind").value, floor=+$("#plmin").value;
+  let c=parlayCards(floor);
+  if(kind==="sgp")c=c.filter(x=>x.sgp);
+  else if(kind==="cross")c=c.filter(x=>!x.sgp);
+  $("#plbody").innerHTML=c.length?c.map(parlayCard).join("")
+    :`<div class="panel"><div class="hint"><span>No two records clear
+      that bar tonight. Lower it, or read them one at a time on
+      <b>Trends</b>.</span></div></div>`;
+}
 let tSub="player";
 function drawTrends(){
   const box=$("#tt");
@@ -1233,13 +1257,6 @@ function drawTrends(){
     box.innerHTML=c.length?c.slice(0,24).map(teamCard).join("")
       :`<div class="panel"><div class="hint"><span>Not enough team games
         on record yet.</span></div></div>`;
-    return;
-  }
-  if(tSub==="parlay"){
-    const c=parlayCards();
-    box.innerHTML=c.length?c.map(parlayCard).join("")
-      :`<div class="panel"><div class="hint"><span>No two records strong
-        enough to pair up tonight.</span></div></div>`;
     return;
   }
   if(tSub==="alt"){
@@ -1647,93 +1664,6 @@ function drawSlip(){
   $("#slipclear").onclick=()=>{SLIP=[];saveSlip();drawSlip();};
 }
 
-/* ---------- line sheet ---------- */
-const SCOLS=[
-  ["Player",0,"l",r=>`<span class="name" data-id="${r.p.id}">${r.p.name}</span>${statusPill(r.p)}`],
-  ["Match",0,"l",r=>`<span class="dim">${matchup(r.p)}</span>`],
-  ["Stat",0,"l",r=>LBL[r.stat]],
-  ["Line",0,"",r=>r.line.toFixed(1)],
-  ["L10 avg",0,"",r=>`<b>${isFinite(r.mu)?r.mu.toFixed(1):dash}</b>`],
-  ["Record",0,"",r=>r.rec],
-  ["Over",0,"",r=>pct(r.po)],
-  ["Fair O",0,"",r=>fmtD(p2d(r.po))],
-  ["Fair U",1,"",r=>fmtD(p2d(r.pu))],
-  ["Book",0,"",r=>r.oo?`${fmtD(r.oo)} / ${fmtD(r.uo)}`:dash],
-  ["Hold",1,"",r=>r.oo?`<span class="dim">${pct(d2p(r.oo)+d2p(r.uo)-1)}</span>`:""],
-  ["Side",0,"",r=>r.side],
-  ["vs price",0,"",r=>r.edge===null?dash
-    :`<span class="${cls(r.edge)}" title="his record at this number, minus what the price implies -- two different kinds of number, compared">${sgn(r.edge)}</span>`],
-  ["Opp D",0,"",r=>rankCell(r.p.opp,r.stat,defWindow(),r.p.pos)],
-  ["L10",0,"",r=>r.hit===null?"":`<span class="dim">${r.hit}</span>`],
-];
-function priceSheet(){
-  const txt=$("#paste").value.trim(), out=[], bad=[];
-  if(!txt){$("#st").innerHTML="";$("#pastemsg").textContent="";return;}
-  txt.split(/\n+/).forEach(raw=>{
-    const ln=raw.trim(); if(!ln) return;
-    const f=ln.split(/[,;\t]+|\s{2,}/).map(s=>s.trim()).filter(Boolean);
-    let parts=f.length>=3?f:ln.split(/\s+/);
-    if(parts.length<3){bad.push(ln);return;}
-    // Read by position, not by pattern. Once the page speaks decimal a
-    // price and a line look identical -- 1.87 and 8.5 are both just
-    // numbers -- so the only reliable anchor is the stat key: the name
-    // is everything before it, the line is the number after it, and
-    // whatever follows are the two prices.
-    const si=parts.findIndex(x=>SK.includes(x.toLowerCase()));
-    if(si<1){bad.push(ln);return;}
-    const stat=parts[si].toLowerCase();
-    const line=parseFloat(parts[si+1]);
-    // Either notation is accepted: American always carries a sign and is
-    // at least three digits, decimal never does.
-    const odds=parts.slice(si+2).map(x=>
-      /^[+-]\d{2,4}$/.test(x)?a2d(+x):+x).filter(x=>isFinite(x)&&x>1);
-    const p=findPlayer(parts.slice(0,si).join(" "));
-    if(!p||!SK.includes(stat)||!isFinite(line)){bad.push(ln);return;}
-    // His record at the number you typed, shrunk, in place of the
-    // projection this used to run on.
-    const t10=tallyGames((D.recent[p.id]||[]).slice(-10),stat,line);
-    const tAll=tallyGames(D.recent[p.id]||[],stat,line);
-    const mu=+avgOf(p,stat,10);
-    const po=tAll.dec?rateOf(tAll.o,tAll.dec):0.5, pu=1-po;
-    const r={p,stat,line,mu,po,pu,oo:odds[0]||null,uo:odds[1]||null,
-      rec:tAll.dec?`${tAll.o}/${tAll.dec}`:dash,
-      side:p.out?"ruled out":(po>0.5?"over":"under"),
-      edge:null,ev:null,kelly:0,hit:null};
-    if(r.oo&&r.uo&&!p.out){
-      const [nO,nU]=devigD(r.oo,r.uo);
-      const eo=evD(po,r.oo), eu=evD(pu,r.uo), over=eo>=eu;
-      r.side=over?"over":"under"; r.edge=over?po-nO:pu-nU;
-      r.ev=Math.max(eo,eu); r.kelly=over?kellyD(po,r.oo):kellyD(pu,r.uo);
-    }
-    const g=D.recent[p.id]||[];
-    if(g.length){
-      const n=Math.min(10,g.length), last=g.slice(-n);
-      r.hit=`${last.filter(x=>actual(x,stat)>line).length}/${n}`;
-    }
-    out.push(r);
-  });
-  out.sort((a,b)=>(b.ev===null?-9:b.ev)-(a.ev===null?-9:a.ev));
-  const cols=SCOLS.filter(c=>$("#smore").checked||!c[1]);
-  const t=$("#st"); t.innerHTML="";
-  const head=el("thead"), tr=el("tr");
-  cols.forEach(([l,x,c])=>tr.append(el("th",c,l)));
-  head.append(tr); t.append(head);
-  const tb=el("tbody");
-  out.forEach(r=>{
-    const row=el("tr");
-    cols.forEach(([l,x,c,f])=>row.append(el("td",(c||"")+" num",f(r))));
-    tb.append(row);
-  });
-  t.append(tb);
-  t.querySelectorAll(".name").forEach(n=>{
-    n.onclick=()=>selectPlayerById(+n.dataset.id);
-  });
-  const pos=out.filter(r=>r.edge>0).length;
-  $("#pastemsg").innerHTML=`${out.length} read, ${pos} where his record `+
-    `beats the price`+
-    (bad.length?` &middot; <span class="warn">${bad.length} not understood</span>`:"");
-}
-
 /* ---------- the over/under chart ----------
    One column per game, oldest to newest, grown from a zero baseline so the
    heights can be compared; the line is drawn across them and each column
@@ -2100,68 +2030,6 @@ function defencePanel(p,stat,win){
   return panel;
 }
 
-/* ---------- method ---------- */
-function drawMethod(){
-  const m=D.meta;
-  $("#method").innerHTML=`
-  <div class="longform" style="max-width:72ch">
-  <p><b>What this is.</b> A record keeper, not a forecaster. For every
-  player on tonight's slate it holds his last ${RECENT_N} games and asks
-  one question of them: how often did he clear this number? Nothing here
-  predicts what he will do.</p>
-
-  <p><b>The number.</b> Where a book is quoting the market, that is the
-  number used, and the card says which book and how many are on it.
-  Where none is, the page falls back to the middle of his own last
-  ${RECENT_N} &mdash; marked <span class="src">median</span>. By
-  construction he cleared that half the time, so a record against it
-  describes his spread rather than anyone's opinion of him.</p>
-
-  <p><b>The slices.</b> His last five, ten and twenty; home and away;
-  every meeting with tonight's opponent inside the window; and the games
-  that a team-mate who is out tonight also missed. That last one needs
-  to know who dressed, so it counts only the games where that is on
-  record, and says how many those were. A player's record without the
-  man who normally takes his touches is a fact about his role, which is
-  the one thing a season average cannot tell you.</p>
-
-  <p><b>What a record is not.</b> It is tonight's number carried
-  backwards over games that were played against different numbers. A
-  perfect record usually means the line has since moved to meet it, not
-  that the market has missed something. And it is a small sample: three
-  from three is what a coin does one time in eight, ten from ten one
-  time in a thousand &mdash; which sounds impressive until you remember
-  how many players and markets are being searched. Records far enough
-  from even to be unlikely from a 50/50 line are marked; the rest are
-  description, not evidence.</p>
-
-  <p><b>The slip.</b> Each leg's chance is that player's own record at
-  that number, shrunk towards even by a prior worth four games, so ten
-  from ten reads 86% rather than certainty. The legs are then combined
-  through a Gaussian copula with the correlations measured between them
-  &mdash; on the games those players actually played, matched by date,
-  converted to normal scores and shrunk by sample size. Multiplying the
-  legs instead would assume they are strangers, and two markets on one
-  player never are. The naive number is shown beside the real one.</p>
-
-  <p><b>Minutes and availability.</b> Both come from the injury report
-  and his recent rotation, and both are reported rather than baked into
-  anything. A player ruled out stays on the board, greyed, with the
-  minutes his team has to replace.</p>
-
-  <p><b>Defence.</b> What each opponent concedes per 100 possessions in
-  this market, ranked against the other 29, and separately against the
-  position this player is listed at. The ranks are today's, not the
-  rank on the night each past game was played, so they are context for
-  tonight rather than an explanation of the log.</p>
-
-  <p class="dim2">Built ${m.built} from the ${m.source}${m.book?
-    ", with prices from The Odds API":""}.
-  ${m.seasons.map(x=>`${x.season-1}-${String(x.season).slice(2)}: ${x.games} games`).join(" &middot; ")}.
-  Nothing here is advice, and a record is not a reason.</p>
-  </div>`;
-}
-
 /* ---------- refresh ---------- */
 /* The page carries its data inline, so refreshing is not a fetch -- it is
    the whole chain in daily.sh, a couple of minutes of Python, ending in a
@@ -2198,7 +2066,7 @@ function wireRefresh(){
         // is not an improvement.
         const a=document.activeElement;
         const busy=(a&&["INPUT","TEXTAREA","SELECT"].includes(a.tagName))
-          ||$("#paste").value.trim()||SLIP.length;
+          ||SLIP.length;
         if(!busy)return location.reload();
         const t=el("div","toast",
           `<span>A newer board was published <b>${m.built}</b>`
@@ -2301,7 +2169,7 @@ function wireRefresh(){
     // Never pull the page out from under someone mid-sentence.
     const a=document.activeElement;
     if(a&&["INPUT","TEXTAREA","SELECT"].includes(a.tagName))return false;
-    return !$("#paste").value.trim();
+    return true;
   }
   async function poll(){
     let s;
@@ -2355,10 +2223,10 @@ function wireRefresh(){
 function showTab(t){
   document.querySelectorAll("nav button").forEach(b=>
     b.classList.toggle("on",b.dataset.t===t));
-  ["home","trends","slip","sheet","player","method"].forEach(x=>
+  ["home","trends","parlay","slip","player"].forEach(x=>
     $("#t-"+x).classList.toggle("hide",x!==t));
-  if(t==="method")drawMethod();
   if(t==="player")drawPlayer();
+  if(t==="parlay")drawParlay();
   if(t==="trends")drawTrends();
   if(t==="home")drawHome();
   if(t==="slip")drawSlip();
@@ -2372,7 +2240,6 @@ function init(){
     });
   });
   $("#pstat").value="pts"; $("#tstat").value="pts";
-  $("#statkeys").textContent=SK.join("  ");
   D.games.forEach(g=>{
     [$("#tgame"),$("#pxgame")].forEach(sel=>{
       const o=el("option","",`${g.away} @ ${g.home}`); o.value=g.gid;
@@ -2387,16 +2254,8 @@ function init(){
     b.onclick=()=>showTab(b.dataset.t));
   document.querySelectorAll(".hint .more").forEach(b=>
     b.onclick=()=>fold(b.dataset.fold));
-  $("#run").onclick=priceSheet;
-  $("#smore").addEventListener("input",()=>{if($("#st").rows.length)priceSheet();});
-  $("#paste").addEventListener("keydown",e=>{
-    if((e.metaKey||e.ctrlKey)&&e.key==="Enter")priceSheet();});
-  $("#demo").onclick=()=>{
-    const s=$("#tstat").value;
-    $("#paste").value=D.players.filter(p=>p.min>=24).slice(0,15)
-      .map(p=>`${p.name}, ${s}, ${p.line[s]}, 1.91, 1.91`).join("\n");
-    priceSheet();
-  };
+  ["plkind","plmin"].forEach(id=>
+    $("#"+id).addEventListener("input",drawParlay));
   /* the typable player picker */
   const q=$("#pq");
   // Focusing a field that already holds a name should offer the whole
