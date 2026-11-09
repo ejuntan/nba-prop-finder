@@ -1372,25 +1372,34 @@ function drawSheets(){
   const rows=all.filter(r=>(!gid||r.p.gid==gid)&&r.n>=minB)
     .map(r=>Object.assign(r,{gl:(D.recent[r.p.id]||[]).slice(-10)},
                           propSlices(r)));
-  let html="";
-  SHEETS.forEach(([title,note,pick])=>{
-    const got=rows.map(r=>({r,t:pick(r)}))
-      .filter(x=>x.t&&x.t.dec>=3)
-      .map(x=>Object.assign(x,{s:Math.max(x.t.o,x.t.dec-x.t.o)/x.t.dec}))
-      .filter(x=>x.s>=Math.max(minPct,0.7))
-      .sort((a,b)=>b.s-a.s||b.t.dec-a.t.dec)
-      .slice(0,12);
-    if(!got.length)return;
-    html+=`<div class="panel"><h3>${title}
-      <span class="dim">&middot; ${note}</span></h3></div>
-      <div class="cards">`+got.map(x=>sheetCard(x.r,x.t,
-        pick===SHEETS[3][2]&&x.r.whom?`without ${x.r.whom.name}`
-        :title.toLowerCase())).join("")+`</div>`;
+  // One list, not four. Every prop is cut every way, and the cut that
+  // reads strongest is the one shown -- so the board is ordered by how
+  // often the thing has happened rather than by which question was
+  // asked of it, and the label on each card says which that was.
+  const got=[];
+  rows.forEach(r=>{
+    let best=null;
+    SHEETS.forEach(([title,note,pick],i)=>{
+      const t=pick(r);
+      if(!t||t.dec<3)return;
+      const strength=Math.max(t.o,t.dec-t.o)/t.dec;
+      const label=(i===3&&r.whom)?`without ${surname(r.whom.name)}`
+                                 :title.toLowerCase();
+      if(!best||strength>best.s||(strength===best.s&&t.dec>best.t.dec))
+        best={r,t,s:strength,label};
+    });
+    if(best&&best.s>=Math.max(minPct,0.7))got.push(best);
   });
+  got.sort((a,b)=>b.s-a.s||b.t.dec-a.t.dec);
+  const html=got.length
+    ? `<div class="cards">`
+      +got.slice(0,48).map(x=>sheetCard(x.r,x.t,x.label)).join("")+`</div>`
+    : "";
   body.innerHTML=html||`<div class="panel"><h3>No record stands out</h3>
     <div class="hint"><span>Nothing quoted tonight has cleared its number
-    in at least 70% of a slice with three or more games in it. Lower the
-    threshold, or read the whole board on <b>Trends</b>.</span></div></div>`;
+    in at least ${Math.round(100*Math.max(minPct,0.7))}% of a slice with
+    three or more games in it. Lower the threshold, or read the whole
+    board on <b>Trends</b>.</span></div></div>`;
   body.querySelectorAll(".name").forEach(n=>{
     n.onclick=()=>selectPlayerById(+n.dataset.id);});
   body.querySelectorAll(".add").forEach(b=>{
