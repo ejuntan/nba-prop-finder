@@ -2,363 +2,544 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NBA Prop Research</title>
+<meta name="description" content="Hit rates for tonight's NBA player props, against the line the book is quoting.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0a0d14" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700&display=swap">
 <style>
+/* ---------------------------------------------------------------------
+   Tokens.
+
+   Dark is the base because the scene this page is read in is an evening
+   one: the slate goes up in the afternoon and gets looked at between
+   then and tip-off, on a phone in a room with the lights on or a laptop
+   after dark. Light is not an inversion of it -- it is its own set of
+   steps, measured against its own surfaces. Every ink step below clears
+   4.5:1 on all three of its surfaces, computed rather than judged.
+
+   Two colour systems, kept apart on purpose:
+     - violet  is the interface. Links, the active tab, focus, selection.
+     - teal/red is the data: a diverging pair around the line, with a
+       neutral for a push. Measured against all three kinds of colour
+       blindness, the pair stays 9.5 apart in OKLab and neither is
+       confusable with the violet, which is why the accent is not blue.
+   --------------------------------------------------------------------- */
 :root{
   color-scheme:dark;
-  /* A surface ladder, not two greys: page, card, raised, and two border
-     weights, so depth is carried by the surfaces and borders can stay
-     quiet. */
-  --bg:#0b0e13; --panel:#12171f; --panel2:#19212b;
-  --line:#232b36; --line2:#2f3a47;
-  --ink:#e8eef6; --dim:#93a0b0; --dim2:#657282;
-  --good:#3fb950; --bad:#f85149; --warn:#d29922; --accent:#58a6ff;
-  --accent-soft:rgba(88,166,255,.12);
-  --r:10px; --r-sm:7px;
-  --sh:0 1px 2px rgba(0,0,0,.45);
-  /* The chart's two marks are a diverging pair -- warm and cool poles
-     around the line, not a verdict on which side is the good one. Both are
-     validated against the dark surfaces they sit on (CVD dE 19.2,
-     normal-vision 29.0, contrast >= 3:1), and both carry a text label in
-     the legend so colour never has to say it alone. */
-  --over:#3987e5; --under:#e66767;
-  --grid:#2c3038;
-  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --bg:#0a0d14; --panel:#121725; --panel2:#1b2131;
+  --line:#262e40; --line2:#35405a;
+  --ink:#eef2f8; --dim:#a8b3c6; --dim2:#8b96ab;
+  --accent:#b49bff; --on-accent:#120b22; --accent-soft:rgba(180,155,255,.14);
+  --accent-line:rgba(180,155,255,.45);
+  --over:#2ec4b6; --under:#e8736f; --push:#6b7689;
+  --good:#58d68d; --bad:#ff7b72; --warn:#e3b341;
+  --grid:#2a3346;
+  --sh-1:0 1px 2px rgba(0,0,0,.5);
+  --sh-2:0 10px 24px -8px rgba(0,0,0,.65),0 2px 6px -2px rgba(0,0,0,.5);
+  --sel:rgba(180,155,255,.3);
 }
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    color-scheme:light;
+    --bg:#f6f7f9; --panel:#ffffff; --panel2:#eef0f4;
+    --line:#e0e3ea; --line2:#c7ccd8;
+    --ink:#111621; --dim:#59616f; --dim2:#616977;
+    --accent:#6336c9; --on-accent:#ffffff; --accent-soft:rgba(99,54,201,.09);
+    --accent-line:rgba(99,54,201,.4);
+    --over:#0f766e; --under:#ad3a35; --push:#8a93a2;
+    --good:#15774a; --bad:#b3342b; --warn:#7a4a00;
+    --grid:#dcdfe7;
+    --sh-1:0 1px 2px rgba(16,24,40,.07);
+    --sh-2:0 10px 24px -10px rgba(16,24,40,.2),0 2px 6px -3px rgba(16,24,40,.12);
+    --sel:rgba(99,54,201,.18);
+  }
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f6f7f9; --panel:#ffffff; --panel2:#eef0f4;
+  --line:#e0e3ea; --line2:#c7ccd8;
+  --ink:#111621; --dim:#59616f; --dim2:#616977;
+  --accent:#6336c9; --on-accent:#ffffff; --accent-soft:rgba(99,54,201,.09);
+  --accent-line:rgba(99,54,201,.4);
+  --over:#0f766e; --under:#ad3a35; --push:#8a93a2;
+  --good:#15774a; --bad:#b3342b; --warn:#7a4a00;
+  --grid:#dcdfe7;
+  --sh-1:0 1px 2px rgba(16,24,40,.07);
+  --sh-2:0 10px 24px -10px rgba(16,24,40,.2),0 2px 6px -3px rgba(16,24,40,.12);
+  --sel:rgba(99,54,201,.18);
+}
+:root{
+  /* space: a 4px ladder, used instead of picked numbers */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+  --r:12px; --r-sm:8px; --r-xs:6px;
+  --ui:"Inter var","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",
+       Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --plot-h:148px;
+}
+
 *{box-sizing:border-box}
+html{overflow-x:hidden;-webkit-text-size-adjust:100%}
+@media (pointer:fine){html{overscroll-behavior:none}}
 body{margin:0;background:var(--bg);color:var(--ink);
-  font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
-  -webkit-font-smoothing:antialiased}
-.wrap{max-width:1400px;margin:0 auto;padding:0 20px 64px}
+  font:400 14px/1.55 var(--ui);
+  font-feature-settings:"cv05" 1,"cv11" 1;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:var(--accent-soft);
+  overflow-x:hidden}
+/* Figures are measurement, so they line up in columns and never shuffle
+   width as they change. */
+.num,.rec,.hitpct,.kpi .v,.chip b,.hero b,table td,table th,.strip-n,
+input[type=number],.thresh span,.tip b{font-variant-numeric:tabular-nums}
 
-/* masthead: what this is on the left, what it was built from on the
-   right, and nothing competing with either */
-header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
-  padding:18px 0 14px}
-.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
-.mark{width:28px;height:28px;border-radius:8px;flex:none;
-  background:linear-gradient(145deg,var(--accent),#2b6cb8);
-  display:grid;place-items:center;font-size:12px;font-weight:700;
-  color:#fff;letter-spacing:-.4px;box-shadow:var(--sh)}
-h1{font-size:16px;margin:0;letter-spacing:-.2px;font-weight:650;
-  line-height:1.2}
-h1 small{display:block;font-size:11.5px;color:var(--dim2);font-weight:400;
-  letter-spacing:0}
-.sub{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;
-  color:var(--dim)}
-/* one fact per chip, so the header is scannable instead of a sentence */
-.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;
-  border:1px solid var(--line);border-radius:999px;background:var(--panel);
-  white-space:nowrap}
-.chip b{color:var(--ink);font-weight:600;
-  font-family:var(--mono);font-variant-numeric:tabular-nums}
-.chip.warn{border-color:#5a4a1e;color:var(--warn)}
+/* The parts no stylesheet draws still belong to the design. */
+::selection{background:var(--sel);color:var(--ink)}
+:root{scrollbar-color:var(--line2) transparent;scrollbar-width:thin}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:99px;
+  border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--dim2);
+  border:3px solid transparent;background-clip:content-box}
+input,textarea{caret-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;
+  border-radius:var(--r-xs)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:3px}
+
+.skip{position:absolute;left:var(--s3);top:var(--s3);z-index:80;
+  padding:var(--s2) var(--s3);background:var(--panel);color:var(--ink);
+  border:1px solid var(--line2);border-radius:var(--r-sm);
+  box-shadow:var(--sh-2);font-size:13px;transform:translateY(-200%)}
+.skip:focus{transform:none}
+
+.wrap{max-width:1360px;margin:0 auto;
+  padding:0 max(var(--s5),env(safe-area-inset-left))
+          calc(var(--s6) + env(safe-area-inset-bottom))
+          max(var(--s5),env(safe-area-inset-right))}
+
+/* ---------- masthead: what this is, what it was built from ---------- */
+header{display:flex;align-items:center;gap:var(--s4);flex-wrap:wrap;
+  padding:var(--s5) 0 var(--s4)}
+.brand{display:flex;align-items:center;gap:var(--s3);margin-right:auto;min-width:0}
+.mark{width:30px;height:30px;flex:none;color:var(--accent);display:block}
+h1{font-size:19px;margin:0;letter-spacing:-.018em;font-weight:620;
+  line-height:1.15;text-wrap:balance}
+h1 small{display:block;font-size:12.5px;color:var(--dim);font-weight:400;
+  letter-spacing:0;margin-top:2px}
+.sub{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center;
+  font-size:12.5px;color:var(--dim)}
+.chip{display:inline-flex;align-items:center;gap:var(--s1);
+  padding:var(--s1) 10px;border:1px solid var(--line);border-radius:99px;
+  background:var(--panel);white-space:nowrap;box-shadow:var(--sh-1)}
+.chip b{color:var(--ink);font-weight:600}
+.chip.warn{border-color:var(--warn);color:var(--warn);background:transparent}
 .chip.warn b{color:var(--warn)}
+/* theme switch: an icon button, so it says what it does out loud */
+.themebtn{background:var(--panel);border:1px solid var(--line);
+  color:var(--dim);border-radius:99px;width:32px;height:32px;flex:none;
+  display:grid;place-items:center;cursor:pointer;box-shadow:var(--sh-1)}
+.themebtn:hover{color:var(--ink);border-color:var(--line2)}
+.themebtn svg{width:16px;height:16px;display:block}
 
-/* the night at a glance, before any table */
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
-  margin-bottom:16px}
+/* ---------- the night at a glance ---------- */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s3);
+  margin-bottom:var(--s4)}
 .kpi{background:var(--panel);border:1px solid var(--line);
-  border-radius:var(--r);padding:12px 14px;box-shadow:var(--sh)}
-.kpi .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;
-  color:var(--dim2);font-weight:600;margin-bottom:5px}
-.kpi .v{font-size:21px;font-weight:650;letter-spacing:-.4px;
-  font-family:var(--mono);font-variant-numeric:tabular-nums;line-height:1.1}
-.kpi .v small{font-size:12px;font-weight:500;color:var(--dim);
-  letter-spacing:0;margin-left:3px}
-.kpi .c{font-size:11.5px;color:var(--dim);margin-top:4px}
+  border-radius:var(--r);padding:var(--s3) var(--s4);box-shadow:var(--sh-1)}
+.kpi .k{font-size:12px;letter-spacing:.02em;color:var(--dim);
+  font-weight:550;margin-bottom:var(--s1)}
+.kpi .v{font-size:26px;font-weight:600;letter-spacing:-.03em;line-height:1.05}
+.kpi .v small{font-size:13px;font-weight:450;color:var(--dim);
+  letter-spacing:0;margin-left:var(--s1)}
+.kpi .c{font-size:12.5px;color:var(--dim);margin-top:var(--s1)}
 
-nav{display:flex;gap:4px;margin-bottom:16px;overflow-x:auto;
-  padding:3px;background:var(--panel);border:1px solid var(--line);
+/* ---------- navigation: standard tabs, nothing invented ---------- */
+nav{display:flex;gap:var(--s1);margin-bottom:var(--s4);overflow-x:auto;
+  padding:var(--s1);background:var(--panel);border:1px solid var(--line);
   border-radius:var(--r);position:sticky;top:0;z-index:25;
-  scrollbar-width:none}
+  scrollbar-width:none;box-shadow:var(--sh-1)}
 nav::-webkit-scrollbar{display:none}
 nav button{background:none;border:0;border-radius:var(--r-sm);
-  color:var(--dim);padding:7px 14px;font-size:13px;cursor:pointer;
-  white-space:nowrap;font-weight:550;transition:background .12s,color .12s}
-.subnav{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;
+  color:var(--dim);padding:var(--s2) var(--s4);font-size:13.5px;
+  cursor:pointer;white-space:nowrap;font-weight:550;font-family:inherit;
+  transition:background .14s var(--ease),color .14s var(--ease)}
+nav button:hover{color:var(--ink);background:var(--panel2)}
+nav button[aria-selected="true"]{color:var(--on-accent);
+  background:var(--accent);font-weight:600}
+.subnav{display:flex;gap:var(--s2);margin-bottom:var(--s3);overflow-x:auto;
   scrollbar-width:none}
 .subnav::-webkit-scrollbar{display:none}
-.subnav button{background:none;border:1px solid var(--line);
-  border-radius:999px;color:var(--dim);padding:5px 13px;font-size:12.5px;
-  cursor:pointer;white-space:nowrap;font-weight:550;font-family:inherit}
-.subnav button.on{color:var(--ink);background:var(--panel2);
-  border-color:var(--line2)}
-.subnav button:hover{color:var(--ink)}
-nav button.on{color:var(--ink);background:var(--panel2);
-  box-shadow:inset 0 0 0 1px var(--line2)}
-nav button:hover{color:var(--ink)}
-.panel{background:var(--panel);border:1px solid var(--line);
-  border-radius:var(--r);padding:14px 16px;margin-bottom:12px;
-  box-shadow:var(--sh)}
-footer{margin-top:28px;padding-top:14px;border-top:1px solid var(--line);
-  color:var(--dim2);font-size:11.5px;display:flex;gap:10px;flex-wrap:wrap}
-.bar-row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;
-  font-size:12px;color:var(--dim)}
-.bar-row label{display:flex;gap:5px;align-items:center}
-select,input,textarea{background:var(--panel2);color:var(--ink);
-  border:1px solid var(--line);border-radius:6px;padding:4px 7px;font-size:13px;
+.subnav button{background:var(--panel);border:1px solid var(--line);
+  border-radius:99px;color:var(--dim);padding:var(--s1) var(--s3);
+  font-size:13px;cursor:pointer;white-space:nowrap;font-weight:550;
   font-family:inherit}
-input[type=number]{width:66px;font-family:var(--mono)}
+.subnav button:hover{color:var(--ink);border-color:var(--line2)}
+.subnav button.on{color:var(--accent);background:var(--accent-soft);
+  border-color:var(--accent-line)}
+
+.panel{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r);padding:var(--s4);margin-bottom:var(--s3);
+  box-shadow:var(--sh-1)}
+footer{margin-top:var(--s6);padding-top:var(--s4);
+  border-top:1px solid var(--line);color:var(--dim);font-size:12.5px;
+  display:flex;gap:var(--s3);flex-wrap:wrap}
+
+/* ---------- controls ---------- */
+.bar-row{display:flex;gap:var(--s2) var(--s3);flex-wrap:wrap;
+  align-items:center;font-size:13px;color:var(--dim)}
+.bar-row label{display:flex;gap:var(--s1);align-items:center}
+select,input,textarea{background:var(--panel2);color:var(--ink);
+  border:1px solid var(--line2);border-radius:var(--r-xs);
+  padding:var(--s1) var(--s2);font-size:13px;font-family:inherit}
+select:hover,input:hover{border-color:var(--dim2)}
+input[type=number]{width:70px}
+input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
 textarea{width:100%;font-family:var(--mono);font-size:12.5px;min-height:84px;
   resize:vertical}
-button.go{background:var(--accent);color:#fff;border:0;border-radius:6px;
-  padding:5px 12px;font-size:13px;cursor:pointer;font-weight:500}
-button.ghost{background:none;color:var(--dim);border:1px solid var(--line);
-  border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer}
-button.ghost:hover{color:var(--ink)}
+button.go{background:var(--accent);color:var(--on-accent);border:0;
+  border-radius:var(--r-xs);padding:var(--s1) var(--s3);font-size:13px;
+  cursor:pointer;font-weight:600;font-family:inherit}
+button.go:hover{filter:brightness(1.08)}
+button.ghost{background:var(--panel);color:var(--dim);
+  border:1px solid var(--line2);border-radius:var(--r-xs);
+  padding:var(--s1) 10px;font-size:12.5px;cursor:pointer;font-family:inherit}
+button.ghost:hover{color:var(--ink);border-color:var(--dim2)}
+button:disabled,button[disabled]{opacity:.45;cursor:not-allowed}
+
+/* ---------- tables ---------- */
 table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{padding:7px 10px;text-align:right;
+th,td{padding:var(--s2) var(--s3);text-align:right;
   border-bottom:1px solid var(--line);white-space:nowrap}
-th{color:var(--dim2);font-weight:600;font-size:10.5px;text-transform:uppercase;
-  letter-spacing:.5px;background:var(--panel2);user-select:none;
+th{color:var(--dim);font-weight:600;font-size:12px;letter-spacing:.01em;
+  background:var(--panel2);user-select:none;
   border-bottom:1px solid var(--line2)}
 tbody tr{transition:background .1s}
 tbody tr:hover{background:var(--panel2)}
 tbody tr:last-child td{border-bottom:0}
-/* the name column anchors every row, so it reads first and stays put */
 td.l:first-child{font-weight:550}
 .scroll th{position:sticky;top:0;cursor:pointer;z-index:2}
-.scroll th:hover{color:var(--dim)}
 .scroll th:hover{color:var(--ink)}
 th.l,td.l{text-align:left}
-tbody tr:hover{background:var(--panel2)}
-tbody tr:last-child td{border-bottom:0}
-.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)}
 .dim{color:var(--dim)} .dim2{color:var(--dim2)}
-.pill{display:inline-block;padding:0 5px;border-radius:999px;font-size:10.5px;
-  border:1px solid var(--line);color:var(--dim);vertical-align:1px}
+.pill{display:inline-block;padding:0 var(--s1);border-radius:99px;
+  font-size:12px;border:1px solid var(--line2);color:var(--dim);
+  vertical-align:1px}
 .pill.out{color:var(--bad);border-color:var(--bad)}
 .pill.q{color:var(--warn);border-color:var(--warn)}
 .scroll{max-height:74vh;overflow:auto;border:1px solid var(--line);
-  box-shadow:var(--sh);
-  border-radius:8px;background:var(--panel)}
+  box-shadow:var(--sh-1);border-radius:var(--r);background:var(--panel)}
 .scroll table{font-size:12.5px}
-tr.outrow td{color:var(--dim2)}
+tr.outrow td{color:var(--dim)}
 tr.outrow td.l .name{color:var(--dim);font-weight:400}
-.banner{border:1px solid var(--bad);border-radius:7px;padding:9px 12px;
-  margin-bottom:12px;font-size:13px;color:var(--ink);
-  background:color-mix(in srgb,var(--bad) 10%,transparent)}
+
+.banner{border:1px solid var(--bad);border-radius:var(--r-sm);
+  padding:var(--s3);margin-bottom:var(--s3);font-size:13px;color:var(--ink);
+  background:color-mix(in srgb,var(--bad) 12%,transparent)}
 .banner b{color:var(--bad)}
-.name{cursor:pointer;font-weight:500}
+
+/* A player's name is a control: it opens him. So it is a button. */
+button.name,.name{cursor:pointer;font-weight:550;background:none;border:0;
+  padding:0;color:inherit;font-family:inherit;font-size:inherit;
+  text-align:left;letter-spacing:inherit}
 .name:hover{color:var(--accent)}
-/* One short line, with the long version a click away. */
-.hint{color:var(--dim);font-size:11.5px;margin-top:7px;display:flex;gap:6px;
-  align-items:baseline}
-.hint .more{cursor:pointer;color:var(--accent);white-space:nowrap}
-.longform{color:var(--dim);font-size:12px;line-height:1.6;margin-top:8px;
-  max-width:68ch}
-.longform p{margin:0 0 7px}
-.fold{cursor:pointer;color:var(--dim);font-size:11px;text-transform:uppercase;
-  letter-spacing:.3px;font-weight:600;background:none;border:0;padding:8px 0 0;
-  display:flex;align-items:center;gap:5px}
+
+.hint{color:var(--dim);font-size:12.5px;margin-top:var(--s2);display:flex;
+  gap:var(--s2);align-items:baseline;flex-wrap:wrap}
+.hint .more{cursor:pointer;color:var(--accent);white-space:nowrap;
+  background:none;border:0;padding:0;font-family:inherit;font-size:inherit;
+  text-decoration:underline;text-underline-offset:3px}
+.longform{color:var(--dim);font-size:13px;line-height:1.65;
+  margin-top:var(--s3);max-width:68ch}
+.longform p{margin:0 0 var(--s2)}
+.fold{cursor:pointer;color:var(--dim);font-size:12px;letter-spacing:.01em;
+  font-weight:600;background:none;border:0;padding:var(--s2) 0 0;
+  display:flex;align-items:center;gap:var(--s1);font-family:inherit}
 .fold:hover{color:var(--ink)}
-.fold .car{display:inline-block;transition:transform .12s}
+.fold .car{display:inline-block;transition:transform .14s var(--ease)}
 .fold.open .car{transform:rotate(90deg)}
+
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));
-  gap:6px 26px}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:12.5px;
-  align-content:start}
+  gap:var(--s1) var(--s6)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px var(--s3);
+  font-size:13px;align-content:start}
 .kv div:nth-child(odd){color:var(--dim)}
-.bar{height:4px;background:var(--panel2);border-radius:3px;overflow:hidden;
+.bar{height:5px;background:var(--panel2);border-radius:99px;overflow:hidden;
   display:inline-block}
 .bar i{display:block;height:100%}
-h2{font-size:15px;margin:0 0 9px;font-weight:600}
-h2 .dim{font-weight:400;font-size:13px}
-h3{font-size:11px;margin:0 0 8px;color:var(--dim);text-transform:uppercase;
-  letter-spacing:.4px;font-weight:600}
-h3 .dim{text-transform:none;letter-spacing:0;font-weight:400}
-/* Last rule wins among equal specificity, and plenty of components below
-   set their own display -- the refresh control did, and stayed on screen
-   on the public site after being told to go. !important is the honest
-   way to say that hidden means hidden, rather than racing each one. */
+
+/* Headings: more space above than below, and a real step between them. */
+h2{font-size:17px;margin:0 0 var(--s3);font-weight:620;letter-spacing:-.012em;
+  text-wrap:balance}
+h2 .dim{font-weight:400;font-size:13.5px;letter-spacing:0}
+h3{font-size:12.5px;margin:var(--s4) 0 var(--s2);color:var(--dim);
+  font-weight:600;letter-spacing:.01em}
+h3:first-child{margin-top:0}
+h3 .dim{font-weight:400}
 .hide{display:none!important}
-/* typable player picker */
+
+/* ---------- typable player picker ---------- */
 .combo{position:relative;display:inline-block}
-.combo input{width:210px}
-.menu{position:absolute;z-index:40;top:calc(100% + 3px);left:0;min-width:240px;
-  max-height:270px;overflow:auto;background:var(--panel);
-  border:1px solid var(--line);border-radius:7px;
-  box-shadow:0 8px 22px rgba(0,0,0,.28);padding:3px}
-.menu div{padding:5px 8px;border-radius:5px;cursor:pointer;font-size:13px;
-  display:flex;justify-content:space-between;gap:14px;white-space:nowrap}
-.menu div.on{background:var(--accent);color:#fff}
-.menu div.on .dim{color:#dbeafe}
+.combo input{width:220px}
+.menu{position:absolute;z-index:40;top:calc(100% + var(--s1));left:0;
+  min-width:250px;max-height:280px;overflow:auto;background:var(--panel);
+  border:1px solid var(--line2);border-radius:var(--r-sm);
+  box-shadow:var(--sh-2);padding:var(--s1);overscroll-behavior:contain}
+.menu div{padding:var(--s1) var(--s2);border-radius:var(--r-xs);
+  cursor:pointer;font-size:13px;display:flex;justify-content:space-between;
+  gap:var(--s4);white-space:nowrap}
+.menu div.on{background:var(--accent);color:var(--on-accent)}
+.menu div.on .dim{color:var(--on-accent);opacity:.75}
 .menu .empty{color:var(--dim);cursor:default}
-/* last-N over/under chart */
-.chart{margin:2px 0 12px}
-.chart-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
-  margin-bottom:10px}
-.hero{font-size:19px;font-weight:600;letter-spacing:-.2px}
-.hero b{font-family:var(--mono)}
+
+/* ---------- last-N over/under chart ---------- */
+.chart{margin:var(--s1) 0 var(--s3)}
+.chart-head{display:flex;align-items:baseline;gap:var(--s4);flex-wrap:wrap;
+  margin-bottom:var(--s3)}
+.hero{font-size:22px;font-weight:620;letter-spacing:-.02em}
 .hero .o{color:var(--over)} .hero .u{color:var(--under)}
-.hero .sep{color:var(--dim2);font-weight:400;margin:0 7px}
-.hero small{font-size:12px;color:var(--dim);font-weight:400;margin-left:4px}
-.legend{display:flex;gap:14px;font-size:11.5px;color:var(--dim)}
-.legend span{display:flex;align-items:center;gap:5px}
-.sw{width:9px;height:9px;border-radius:2px;display:inline-block}
+.hero .sep{color:var(--dim2);font-weight:400;margin:0 var(--s2)}
+.hero small{font-size:13px;color:var(--dim);font-weight:400;
+  margin-left:var(--s1);letter-spacing:0}
+.legend{display:flex;gap:var(--s4);font-size:12.5px;color:var(--dim)}
+.legend span{display:flex;align-items:center;gap:var(--s1)}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block}
 .sw.o{background:var(--over)} .sw.u{background:var(--under)}
-.plot{position:relative;height:140px}
+.plot{position:relative;height:var(--plot-h)}
 .cols,.xrow{display:flex;gap:2px;align-items:flex-end;height:100%}
-.xrow{height:auto;align-items:flex-start;margin-top:5px}
+.xrow{height:auto;align-items:flex-start;margin-top:var(--s1)}
 .col{flex:1 1 0;min-width:0;display:flex;justify-content:center}
-/* Not a flex row: the opponent and the date stack, and a flex container
-   would lay the line break out beside the text instead of under it. */
-.xc{flex:1 1 0;min-width:0;display:block}
-.col i{display:block;width:100%;max-width:24px;border-radius:4px 4px 0 0}
+.xc{flex:1 1 0;min-width:0;display:block;font-size:12px;color:var(--dim);
+  text-align:center;line-height:1.3;overflow:hidden;white-space:nowrap}
+.col i{display:block;width:100%;max-width:26px;border-radius:4px 4px 0 0;
+  box-shadow:0 0 0 2px var(--panel)}
 .col i.o{background:var(--over)} .col i.u{background:var(--under)}
-.col:hover i{filter:brightness(1.22)}
-.xc{font-size:10px;color:var(--dim);text-align:center;line-height:1.35;
-  overflow:hidden;white-space:nowrap}
-.xrow.tight .xc{font-size:9px}
-.base{position:absolute;left:0;right:0;bottom:0;border-top:1px solid var(--grid)}
-.thresh{position:absolute;left:0;right:0;border-top:2px solid var(--ink);
-  pointer-events:none}
-.thresh span{position:absolute;right:0;top:-9px;background:var(--panel);
-  padding:0 5px;font-size:10.5px;color:var(--ink);font-family:var(--mono)}
+.col:hover i{filter:brightness(1.18)}
+.xrow.tight .xc{font-size:12px}
+.base{position:absolute;left:0;right:0;bottom:0;
+  border-top:1px solid var(--grid)}
+.thresh{position:absolute;left:0;right:0;border-top:2px dashed var(--ink);
+  pointer-events:none;opacity:.8}
+.thresh span{position:absolute;right:0;top:-10px;background:var(--panel);
+  padding:0 var(--s1);font-size:12px;color:var(--ink);font-weight:600}
 .tip{position:absolute;z-index:30;background:var(--panel2);
-  border:1px solid var(--line);border-radius:6px;padding:5px 8px;
-  font-size:11.5px;pointer-events:none;white-space:nowrap;
-  box-shadow:0 6px 18px rgba(0,0,0,.4)}
-.tip b{font-family:var(--mono)}
-/* a count on the Slip tab, so a slip in progress is visible from
-   anywhere on the page */
-.badge{display:inline-block;min-width:17px;padding:0 5px;margin-left:5px;
-  border-radius:999px;background:var(--accent);color:#06101d;
-  font-size:10.5px;font-weight:700;line-height:16px;text-align:center;
-  font-family:var(--mono)}
-button.add{background:var(--panel2);border:1px solid var(--line2);
-  color:var(--dim);border-radius:var(--r-sm);width:24px;height:22px;
-  font-size:13px;line-height:1;cursor:pointer;padding:0}
-button.add:hover{color:var(--ink);border-color:var(--accent)}
-button.add.on{background:var(--accent-soft);border-color:var(--accent);
+  border:1px solid var(--line2);border-radius:var(--r-xs);
+  padding:var(--s1) var(--s2);font-size:12.5px;pointer-events:none;
+  white-space:nowrap;box-shadow:var(--sh-2)}
+
+.badge{display:inline-block;min-width:18px;padding:0 var(--s1);
+  margin-left:var(--s1);border-radius:99px;background:var(--accent);
+  color:var(--on-accent);font-size:12px;font-weight:700;line-height:17px;
+  text-align:center}
+nav button[aria-selected="true"] .badge{background:var(--on-accent);
   color:var(--accent)}
-/* a stated reason the slip is not what it looks like */
-.note{border:1px solid var(--line2);border-left-width:3px;
-  background:var(--panel);border-radius:var(--r-sm);padding:9px 12px;
-  margin-bottom:8px;font-size:12.5px;color:var(--dim)}
+button.add{background:var(--panel2);border:1px solid var(--line2);
+  color:var(--dim);border-radius:var(--r-xs);width:26px;height:24px;
+  font-size:14px;line-height:1;cursor:pointer;padding:0;flex:none;
+  font-family:inherit}
+button.add:hover{color:var(--ink);border-color:var(--accent)}
+button.add.on{background:var(--accent-soft);border-color:var(--accent-line);
+  color:var(--accent)}
+
+/* A stated reason the slip is not what it looks like. Tinted ground and a
+   1px border, not a coloured slab down one side. */
+.note{border:1px solid var(--line2);background:var(--panel2);
+  border-radius:var(--r-sm);padding:var(--s3);margin-bottom:var(--s2);
+  font-size:13px;color:var(--dim)}
 .note b{color:var(--ink);font-weight:600}
-.note.bad{border-left-color:var(--bad)}
-.note.warn{border-left-color:var(--warn)}
-.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
-  background:var(--panel2);border:1px solid var(--line2);
-  border-radius:999px;padding:7px 8px 7px 16px;display:flex;gap:9px;
-  align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.55);
-  font-size:12.5px;color:var(--dim);z-index:60;max-width:calc(100vw - 24px)}
-.toast b{color:var(--ink);font-family:var(--mono)}
-/* the last-N strip: one mark per game, oldest first, 2px of surface
-   between them so adjacent games never read as one block */
-.strip{display:inline-flex;gap:2px;vertical-align:-2px}
-.strip i{width:7px;height:13px;border-radius:2px;display:inline-block}
-.strip i.o{background:var(--over)} .strip i.u{background:var(--under)}
-.strip i.p{background:var(--dim2)}
-/* tonight's fixtures, the way a sports page opens */
-.fixtures{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
-  gap:8px;margin-top:10px}
-.fx{display:grid;grid-template-columns:auto auto auto 1fr;align-items:baseline;
-  gap:6px;background:var(--panel2);border:1px solid var(--line);
-  border-radius:var(--r-sm);padding:9px 11px;cursor:pointer;text-align:left;
-  color:var(--ink);font-size:13px;font-family:inherit}
-.fx:hover{border-color:var(--accent)}
-.fx-t{font-weight:650;letter-spacing:-.2px}
-.fx-at{color:var(--dim2);font-size:11px}
-.fx-time{color:var(--dim);font-size:11px;text-align:right}
-.fx-n{grid-column:1/-1;color:var(--accent);font-size:11px}
-/* the trend card: a prop, its price, and the record several ways */
-.hitrows{display:flex;flex-direction:column;gap:3px;margin:8px 0}
-.hitrow{display:flex;align-items:baseline;gap:8px;font-size:12px;
+.note.bad{border-color:var(--bad);
+  background:color-mix(in srgb,var(--bad) 9%,transparent)}
+.note.bad b{color:var(--bad)}
+.note.warn{border-color:var(--warn);
+  background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.note.warn b{color:var(--warn)}
+
+.toast{position:fixed;left:50%;bottom:calc(var(--s4) + env(safe-area-inset-bottom));
+  transform:translateX(-50%);background:var(--panel);
+  border:1px solid var(--line2);border-radius:99px;
+  padding:var(--s2) var(--s2) var(--s2) var(--s4);display:flex;gap:var(--s3);
+  align-items:center;box-shadow:var(--sh-2);font-size:12.5px;color:var(--dim);
+  z-index:60;max-width:calc(100vw - var(--s5))}
+.toast b{color:var(--ink)}
+
+/* ---------------------------------------------------------------------
+   The strip is the move. Every record on this page is a count of games,
+   so every record shows those games: one mark each, oldest on the left,
+   teal where the number was cleared and red where it was not, with the
+   surface showing through between them so no two games read as one.
+   It is the only element that gets an entrance, and it earns it by
+   drawing in the direction the games were played.
+   --------------------------------------------------------------------- */
+.strip{display:flex;gap:2px;align-items:stretch;height:20px;
+  margin-top:var(--s3);padding-top:var(--s3);
+  border-top:1px solid var(--line)}
+.strip i{flex:1 1 0;min-width:3px;max-width:14px;border-radius:2px;
+  display:block}
+.strip i.o{background:var(--over)}
+.strip i.u{background:var(--under)}
+.strip i.p{background:var(--push)}
+@media (prefers-reduced-motion:no-preference){
+  .strip{animation:wipe .5s var(--ease) both}
+  .card:nth-child(2) .strip{animation-delay:.03s}
+  .card:nth-child(3) .strip{animation-delay:.06s}
+  .card:nth-child(4) .strip{animation-delay:.09s}
+  .card:nth-child(5) .strip{animation-delay:.12s}
+  .card:nth-child(6) .strip{animation-delay:.15s}
+  .card:nth-child(7) .strip{animation-delay:.18s}
+  .card:nth-child(8) .strip{animation-delay:.21s}
+}
+@keyframes wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0)}}
+
+/* ---------- tonight's fixtures ---------- */
+.fixtures{display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:var(--s2);margin-top:var(--s3)}
+.fx{display:grid;grid-template-columns:auto auto auto 1fr;
+  align-items:baseline;gap:var(--s1) var(--s2);background:var(--panel2);
+  border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:10px var(--s3);cursor:pointer;text-align:left;color:var(--ink);
+  font-size:13px;font-family:inherit;
+  transition:border-color .14s var(--ease),background .14s var(--ease)}
+.fx:hover{border-color:var(--accent-line);background:var(--accent-soft)}
+.fx-t{font-weight:620;letter-spacing:-.01em}
+.fx-at{color:var(--dim);font-size:12px}
+.fx-time{color:var(--dim);font-size:12px;text-align:right}
+.fx-n{grid-column:1/-1;color:var(--accent);font-size:12px}
+
+/* ---------- the trend card ---------- */
+.hitrows{display:flex;flex-direction:column;gap:var(--s1);margin:var(--s3) 0}
+.hitrow{display:flex;align-items:baseline;gap:var(--s2);font-size:12.5px;
   color:var(--dim)}
 .hitrow span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis}
-.hitrow b{font-family:var(--mono);font-variant-numeric:tabular-nums;
-  color:var(--ink);font-weight:600}
+.hitrow b{color:var(--ink);font-weight:600}
 .hitrow.hot b{color:var(--good)}
 .hitrow.cold b{color:var(--bad)}
-/* cheatsheet cards: one prop, one slice, one record */
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
-  gap:10px;margin-bottom:16px}
+
+/* ---------- the board ---------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:var(--s3);margin-bottom:var(--s4)}
 .card{background:var(--panel);border:1px solid var(--line);
-  border-radius:var(--r);padding:11px 13px;box-shadow:var(--sh)}
-.card-top{display:flex;align-items:start;gap:8px;margin-bottom:6px}
+  border-radius:var(--r);padding:var(--s3) var(--s4) var(--s4);
+  box-shadow:var(--sh-1);
+  transition:border-color .14s var(--ease),box-shadow .14s var(--ease)}
+.card:hover{border-color:var(--line2);box-shadow:var(--sh-2)}
+.card-top{display:flex;align-items:start;gap:var(--s2);margin-bottom:var(--s1)}
 .card-top>div{flex:1;min-width:0}
-.card-top b{display:block;font-size:13.5px;font-weight:600;cursor:pointer;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card-top .dim{font-size:11.5px}
-.card-prop{font-size:12.5px;color:var(--ink);margin-bottom:8px}
-.card-prop .num{margin-left:4px;font-family:var(--mono)}
-.card-prop .dim2{font-size:11px;margin-left:3px}
-.card-hit{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
-.hitpct{font-size:19px;font-weight:650;letter-spacing:-.3px;
-  font-family:var(--mono);font-variant-numeric:tabular-nums}
-.card-hit .dim2{font-size:11px}
-.rec{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.card-top b{display:block;font-size:15px;font-weight:620;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  letter-spacing:-.012em}
+.card-top .dim{font-size:12.5px}
+.card-prop{font-size:13px;color:var(--ink);margin-bottom:var(--s3)}
+.card-prop .num{margin-left:var(--s1);font-weight:600}
+.card-prop .dim2{font-size:12px;margin-left:var(--s1)}
+.card-hit{display:flex;align-items:baseline;gap:var(--s2);flex-wrap:wrap}
+.hitpct{font-size:28px;font-weight:620;letter-spacing:-.035em;
+  line-height:1;color:var(--ink)}
+.card-hit .dim2{font-size:12px}
 .rec b{font-weight:600}
-.src{font-size:9.5px;color:var(--dim2);text-transform:uppercase;
-  letter-spacing:.3px;margin-left:4px}
+.src{font-size:12px;color:var(--dim);margin-left:var(--s1)}
 .src.book{color:var(--accent)}
-/* refresh control: a button in the header, a progress panel under the nav */
-#refresh{display:flex;gap:8px;align-items:center;margin-left:auto;
-  font-size:12px;color:var(--dim)}
-#refresh label{display:flex;gap:4px;align-items:center;cursor:pointer;
+
+/* ---------- refresh control ---------- */
+#refresh{display:flex;gap:var(--s2);align-items:center;font-size:12.5px;
+  color:var(--dim);flex-wrap:wrap}
+#refresh label{display:flex;gap:var(--s1);align-items:center;cursor:pointer;
   white-space:nowrap}
-#rf[disabled]{opacity:.45;cursor:not-allowed}
-#rfpanel{margin-bottom:14px}
-.rflog{margin:8px 0 0;max-height:210px;overflow:auto;background:var(--bg);
-  border:1px solid var(--line);border-radius:6px;padding:8px 10px;
-  font:11.5px/1.5 var(--mono);color:var(--dim);white-space:pre-wrap;
-  word-break:break-word}
-.spin{display:inline-block;width:9px;height:9px;border-radius:50%;
-  border:2px solid var(--line);border-top-color:var(--accent);
-  animation:sp .7s linear infinite;vertical-align:-1px;margin-right:4px}
+#rfpanel{margin-bottom:var(--s4)}
+.rflog{margin:var(--s2) 0 0;max-height:210px;overflow:auto;
+  background:var(--bg);border:1px solid var(--line);border-radius:var(--r-xs);
+  padding:var(--s2) var(--s3);font:12.5px/1.55 var(--mono);color:var(--dim);
+  white-space:pre-wrap;word-break:break-word;overscroll-behavior:contain}
+.spin{display:inline-block;width:10px;height:10px;border-radius:50%;
+  border:2px solid var(--line2);border-top-color:var(--accent);
+  animation:sp .7s linear infinite;vertical-align:-1px;
+  margin-right:var(--s1)}
 @keyframes sp{to{transform:rotate(360deg)}}
-@media(max-width:900px){
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;
+    animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .spin{animation:none;border-top-color:var(--accent)}
+}
+
+@media (max-width:980px){
   .kpis{grid-template-columns:repeat(2,1fr)}
 }
-@media(max-width:700px){
-  #refresh{margin-left:0}
-  .wrap{padding:0 14px 44px}
-  header{padding:14px 0 10px}
-  .brand{margin-right:0;width:100%}
-  .plot{height:110px}
-  .xc{font-size:9px}
-  th,td{padding:6px 7px}
-  .kpi{padding:10px 12px}
-  .kpi .v{font-size:18px}
-  .combo input{width:160px}
-  /* a toolbar of eight controls is a wall on a phone; let it scroll as
+@media (max-width:700px){
+  :root{--plot-h:120px}
+  .wrap{padding:0 max(var(--s4),env(safe-area-inset-left))
+            calc(var(--s5) + env(safe-area-inset-bottom))
+            max(var(--s4),env(safe-area-inset-right))}
+  header{padding:var(--s4) 0 var(--s3);gap:var(--s3)}
+  /* The switch belongs beside the name, not stranded on a line of its
+     own under the controls. */
+  .brand{margin-right:0;flex:1 1 0;min-width:0;order:0}
+  .themebtn{order:1}
+  .sub{order:2} #refresh{order:3}
+  h1{font-size:17px}
+  /* Five tabs, one row, no scroll: a tab bar you have to swipe hides
+     the view you are not on. */
+  nav{display:grid;grid-template-columns:repeat(5,1fr);overflow:visible}
+  nav button{padding:var(--s2) var(--s1);font-size:12.5px;text-align:center}
+  .kpi .v{font-size:22px}
+  .hitpct{font-size:24px}
+  th,td{padding:var(--s2)}
+  .combo input{width:170px}
+  /* A toolbar of eight controls is a wall on a phone; let it scroll as
      one row rather than wrap into six. */
-  .bar-row{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;
+  .bar-row{flex-wrap:nowrap;overflow-x:auto;padding-bottom:var(--s1);
     scrollbar-width:none}
   .bar-row::-webkit-scrollbar{display:none}
   .bar-row>*{flex:none}
 }
 </style>
+<a class="skip" href="#main">Skip to the board</a>
 <div class="wrap">
 <header>
   <div class="brand">
-    <div class="mark">NP</div>
-    <h1>NBA Prop Research<small>projections, hit rates and market lines</small></h1>
+    <!-- Drawn, not a glyph: the ball's seams, one stroke weight, so the
+         mark belongs to the same hand as the rest of the page. -->
+    <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+         stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <circle cx="12" cy="12" r="9.2"/>
+      <path d="M12 2.8v18.4M2.8 12h18.4"/>
+      <path d="M5.4 5.4c3.6 2.2 5.4 4.9 5.4 6.6s-1.8 4.4-5.4 6.6"/>
+      <path d="M18.6 5.4c-3.6 2.2-5.4 4.9-5.4 6.6s1.8 4.4 5.4 6.6"/>
+    </svg>
+    <h1>NBA Prop Research<small>How often it has actually happened, at tonight&rsquo;s number</small></h1>
   </div>
   <div class="sub" id="sub"></div>
   <div id="refresh">
     <button class="ghost" id="rf">Refresh</button>
     <label id="rflineswrap"><input type="checkbox" id="rflines"> + lines</label>
     <label id="rfautowrap"><input type="checkbox" id="rfauto"> auto</label>
-    <span class="dim2" id="rfmsg"></span>
+    <span class="dim" id="rfmsg" role="status" aria-live="polite"></span>
   </div>
+  <button class="themebtn" id="themebtn" type="button"
+          aria-label="Switch to the light theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.8" stroke-linecap="round" aria-hidden="true"
+         id="themeicon"></svg>
+  </button>
 </header>
 <div class="kpis" id="kpis"></div>
-<nav>
-  <button data-t="home" class="on">Home</button>
-  <button data-t="trends">Trends</button>
-  <button data-t="parlay">Parlay</button>
-  <button data-t="slip">Slip <span class="badge hide" id="slipn"></span></button>
-  <button data-t="player">Player</button>
+<nav role="tablist" aria-label="Views">
+  <button role="tab" id="tab-home" aria-controls="t-home" aria-selected="true" data-t="home">Home</button>
+  <button role="tab" id="tab-trends" aria-controls="t-trends" aria-selected="false" data-t="trends">Trends</button>
+  <button role="tab" id="tab-parlay" aria-controls="t-parlay" aria-selected="false" data-t="parlay">Parlay</button>
+  <button role="tab" id="tab-slip" aria-controls="t-slip" aria-selected="false" data-t="slip">Slip <span class="badge hide" id="slipn"></span></button>
+  <button role="tab" id="tab-player" aria-controls="t-player" aria-selected="false" data-t="player">Player</button>
 </nav>
+<main id="main">
 
 <div class="panel hide" id="rfpanel">
   <div class="bar-row">
-    <b id="rfstate">Refreshing</b>
+    <b id="rfstate">Refreshing&hellip;</b>
     <span class="dim" id="rfnote"></span>
     <button class="ghost hide" id="rfreload">Reload</button>
     <button class="ghost" id="rfclose" style="margin-left:auto">Hide</button>
@@ -366,7 +547,7 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
   <pre class="rflog" id="rflog"></pre>
 </div>
 
-<section id="t-trends" class="hide">
+<section id="t-trends" class="hide" role="tabpanel" aria-labelledby="tab-trends">
   <div class="panel">
     <div class="bar-row">
       <select id="tstat"></select>
@@ -384,13 +565,13 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
       <button class="ghost" id="treset">Reset</button>
     </div>
     <div class="hint"><span>How often each player has cleared
-      <b>tonight's</b> line &mdash; not the line those games were played
+      <b>tonight’s</b> line &mdash; not the line those games were played
       against.</span>
-      <span class="more" data-fold="t1">why that matters</span></div>
+      <button type="button" class="more" data-fold="t1">why that matters</button></div>
     <div class="longform hide" id="f-t1">
       <p>Nobody stores a line for every player for every past game, and
       this tool has only kept its own since late October. So a record
-      here is tonight's number carried backwards: <i>if this line had
+      here is tonight’s number carried backwards: <i>if this line had
       been up all along, how often would it have been beaten?</i> That is
       the honest way to read a hit rate, and it is not the same question
       as whether the line is wrong.</p>
@@ -405,12 +586,12 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
       on its own means very little. <b>Beyond noise</b> keeps only the
       records far enough from even to be unlikely from a 50/50 line, and
       even those are a starting point for a look, not a signal.</p>
-      <p>Where a book is quoting, the market's line is used and marked
+      <p>Where a book is quoting, the market’s line is used and marked
       <span class="src book">book</span>. Otherwise the number is the
       middle of his own last twenty, marked
       <span class="src">median</span>: he cleared it half the time by
       construction, so a record against it describes his spread rather
-      than anyone's opinion of him. A window of ten or twenty reaches
+      than anyone’s opinion of him. A window of ten or twenty reaches
       back across the season break and can include playoff games, which
       are a different sport for minutes &mdash; <b>This season only</b>
       cuts it to games since October.</p>
@@ -424,7 +605,7 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
 </section>
 
 
-<section id="t-home">
+<section id="t-home" role="tabpanel" aria-labelledby="tab-home">
   <div class="panel" id="slatecard"></div>
   <div class="panel">
     <div class="bar-row">
@@ -438,29 +619,29 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
     </div>
     <div class="hint"><span>Every market a book is quoting tonight, cut
       four ways and ranked by how often it has actually happened.</span>
-      <span class="more" data-fold="x1">how to read it</span></div>
+      <button type="button" class="more" data-fold="x1">how to read it</button></div>
     <div class="longform hide" id="f-x1">
-      <p>Each card is one quoted prop and one slice of the player's own
+      <p>Each card is one quoted prop and one slice of the player’s own
       record against that number: his last ten games, every meeting with
-      tonight's opponent inside the logs, the games on this side of the
+      tonight’s opponent inside the logs, the games on this side of the
       fixture, and the games a team-mate who is out tonight also missed.
       The squares are those games oldest to newest, blue where the number
       was cleared.</p>
       <p>Two things these records are not. They are not a forecast &mdash;
-      the line is tonight's, carried backwards over games that were played
+      the line is tonight’s, carried backwards over games that were played
       against different numbers, so a perfect record often means the line
       has since moved to meet it. And they are not evidence on their own:
       three of three is what a coin does one time in eight, and a slice
       only has to clear three games to appear here.</p>
       <p>Where fewer than three books are quoting a number, that number
-      is one book's opinion rather than a market. The <b>Min books</b>
+      is one book’s opinion rather than a market. The <b>Min books</b>
       control is there to drop those.</p>
     </div>
   </div>
   <div id="pxbody"></div>
 </section>
 
-<section id="t-parlay" class="hide">
+<section id="t-parlay" class="hide" role="tabpanel" aria-labelledby="tab-parlay">
   <div class="panel">
     <div class="bar-row">
       <label>Show <select id="plkind">
@@ -478,7 +659,7 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
     <div class="hint"><span>Pairs built from the strongest records on the
       slate, priced with the correlation between them measured rather
       than assumed.</span>
-      <span class="more" data-fold="pl1">why that matters</span></div>
+      <button type="button" class="more" data-fold="pl1">why that matters</button></div>
     <div class="longform hide" id="f-pl1">
       <p>Every parlay calculator multiplies its legs, which assumes they
       are independent. Two markets on one player never are, and two
@@ -488,8 +669,8 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
       players actually played, matched by date, and combined through a
       copula with that correlation in it. The line under each pair says
       which way it cut.</p>
-      <p>What these are not: a forecast. Each leg's chance is that
-      player's own record at tonight's number, carried backwards over
+      <p>What these are not: a forecast. Each leg’s chance is that
+      player’s own record at tonight’s number, carried backwards over
       games played against different numbers, and shrunk towards even
       because ten from ten is not certainty. A pair of strong records is
       a pair of strong records. Multiplying two of them does not make
@@ -499,12 +680,12 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
   <div id="plbody" class="cards"></div>
 </section>
 
-<section id="t-slip" class="hide">
+<section id="t-slip" class="hide" role="tabpanel" aria-labelledby="tab-slip">
   <div id="slipbody"></div>
 </section>
 
 
-<section id="t-player" class="hide">
+<section id="t-player" class="hide" role="tabpanel" aria-labelledby="tab-player">
   <div class="panel">
     <div class="bar-row">
       <span class="combo">
@@ -524,6 +705,7 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent);
 </section>
 
 
+</main>
 <footer id="foot"></footer>
 </div>
 <script>
@@ -1030,7 +1212,11 @@ function recCell(t){
     +(t.psh?`<span class="dim2" title="${t.psh} landed on the number"> +${t.psh}p</span>`:"");
 }
 function stripOf(games,stat,line){
-  return `<span class="strip">`+games.map(x=>{
+  const o=games.filter(x=>actual(x,stat)>line).length;
+  const pu=games.filter(x=>actual(x,stat)===line).length;
+  const lab=`${games.length} games oldest to newest: ${o} over, `
+    +`${games.length-o-pu} under${pu?`, ${pu} on the number`:""}`;
+  return `<span class="strip" role="img" aria-label="${lab}">`+games.map(x=>{
     const v=actual(x,stat), c=v===line?"p":(v>line?"o":"u");
     return `<i class="${c}" title="${x.d.slice(5)} ${x.h?"vs":"@"} ${x.o}`
       +` &middot; ${v} in ${x.min} min"></i>`;
@@ -1096,9 +1282,11 @@ function trendCard(r){
     });
   return `<div class="card">
     <div class="card-top">
-      <div><b class="name" data-id="${r.p.id}">${r.p.name}</b>
+      <div><button type="button" class="name" data-id="${r.p.id}">${r.p.name}</button>
         <span class="dim">${r.p.home?"vs":"@"} ${r.p.opp}</span></div>
-      <button class="add${inSlip(key)?" on":""}" data-leg="${key}"
+      <button type="button" class="add${inSlip(key)?" on":""}"
+        data-leg="${key}" aria-label="${inSlip(key)
+          ?"Remove this leg from the slip":"Add this leg to the slip"}"
         >${inSlip(key)?"\u2713":"+"}</button>
     </div>
     <div class="card-prop">${side} ${r.line.toFixed(1)} ${LBL[r.stat]}
@@ -1278,15 +1466,15 @@ function quotes(){
    cutting a record, each entry a prop that has actually done it. */
 const SHEETS=[
   ["Recent form","the last ten games, whoever they were against",
-   r=>r.last10],
+   r=>r.last10, r=>r.g_last10],
   ["Against tonight's opponent","every meeting inside the game logs",
-   r=>r.vs],
+   r=>r.vs, r=>r.g_vs],
   ["Home and away","only the games on this side of the fixture",
-   r=>r.side_games],
+   r=>r.side_games, r=>r.g_side],
   ["With a team-mate out","his record in the games that man missed",
-   r=>r.without],
+   r=>r.without, r=>r.g_without],
 ];
-function sheetCard(r,t,label){
+function sheetCard(r,t,label,gs){
   const over=t.o*2>=t.dec, side=over?"over":"under";
   const hits=over?t.o:t.dec-t.o;
   const price=over?r.dOver:r.dUnder;
@@ -1294,9 +1482,11 @@ function sheetCard(r,t,label){
   const key=legKey(r.p.id,r.stat,side);
   return `<div class="card">
     <div class="card-top">
-      <div><b class="name" data-id="${r.p.id}">${r.p.name}</b>
+      <div><button type="button" class="name" data-id="${r.p.id}">${r.p.name}</button>
         <span class="dim">${r.p.home?"vs":"@"} ${r.p.opp}</span></div>
-      <button class="add${inSlip(key)?" on":""}" data-leg="${key}"
+      <button type="button" class="add${inSlip(key)?" on":""}"
+        data-leg="${key}" aria-label="${inSlip(key)
+          ?"Remove this leg from the slip":"Add this leg to the slip"}"
         >${inSlip(key)?"\u2713":"+"}</button>
     </div>
     <div class="card-prop">${side} ${r.line.toFixed(1)} ${LBL[r.stat]}
@@ -1306,7 +1496,7 @@ function sheetCard(r,t,label){
       <span class="rec ${hits===t.dec?"good":""}"><b>${hits}</b>/${t.dec}</span>
       <span class="hitpct">${(100*Math.max(t.o,t.dec-t.o)/t.dec).toFixed(0)}%</span>
       <span class="dim2">${label}</span></div>
-    ${stripOf(r.gl,r.stat,r.line)}</div>`;
+    ${stripOf(gs&&gs.length?gs:r.gl,r.stat,r.line)}</div>`;
 }
 /* The four cuts a cheatsheet card can be built from. Lost once to a
    bad splice, which the board only hid because nothing was quoted that
@@ -1316,20 +1506,29 @@ function propSlices(q){
   const p=q.p, stat=q.stat, line=q.line;
   const log=D.recent[p.id]||[];
   const byDate=(D.played||{})[p.team]||{};
-  let without=null, whom=null;
+  let without=null, whom=null, g_without=[];
   D.players.filter(x=>x.out&&x.team===p.team&&x.id!==p.id)
     .sort((a,b)=>b.base_min-a.base_min).forEach(m=>{
       const known=log.filter(x=>byDate[x.d]);
       const g=known.filter(x=>byDate[x.d].indexOf(m.id)<0);
       if(known.length-g.length<WITH_MIN)return;   // he was never there
       const t=tallyGames(g,stat,line);
-      if(t.dec>=3&&(!without||t.dec>without.dec)){ without=t; whom=m; }
+      if(t.dec>=3&&(!without||t.dec>without.dec)){
+        without=t; whom=m; g_without=g;
+      }
     });
+  // Each cut keeps the games it counted, not just the count. The strip
+  // under a card is a picture of that card's record, so a headline of
+  // 8 from 8 cannot sit over a row of marks that includes a miss.
+  const g_last10=log.slice(-10);
+  const g_vs=log.filter(g=>g.o===p.opp);
+  const g_side=log.filter(g=>!!g.h===!!p.home);
   return {
-    last10:tallyGames(log.slice(-10),stat,line),
-    vs:tallyGames(log.filter(g=>g.o===p.opp),stat,line),
-    side_games:tallyGames(log.filter(g=>!!g.h===!!p.home),stat,line),
+    last10:tallyGames(g_last10,stat,line),
+    vs:tallyGames(g_vs,stat,line),
+    side_games:tallyGames(g_side,stat,line),
     without, whom,
+    g_last10, g_vs, g_side, g_without,
   };
 }
 function drawHome(){
@@ -1379,21 +1578,21 @@ function drawSheets(){
   const got=[];
   rows.forEach(r=>{
     let best=null;
-    SHEETS.forEach(([title,note,pick],i)=>{
+    SHEETS.forEach(([title,note,pick,games],i)=>{
       const t=pick(r);
       if(!t||t.dec<3)return;
       const strength=Math.max(t.o,t.dec-t.o)/t.dec;
       const label=(i===3&&r.whom)?`without ${surname(r.whom.name)}`
                                  :title.toLowerCase();
       if(!best||strength>best.s||(strength===best.s&&t.dec>best.t.dec))
-        best={r,t,s:strength,label};
+        best={r,t,s:strength,label,gs:games(r)||[]};
     });
     if(best&&best.s>=Math.max(minPct,0.7))got.push(best);
   });
   got.sort((a,b)=>b.s-a.s||b.t.dec-a.t.dec);
   const html=got.length
     ? `<div class="cards">`
-      +got.slice(0,48).map(x=>sheetCard(x.r,x.t,x.label)).join("")+`</div>`
+      +got.slice(0,48).map(x=>sheetCard(x.r,x.t,x.label,x.gs)).join("")+`</div>`
     : "";
   body.innerHTML=html||`<div class="panel"><h3>No record stands out</h3>
     <div class="hint"><span>Nothing quoted tonight has cleared its number
@@ -1582,14 +1781,14 @@ function drawSlip(){
   const fair=p2d(joint);
   const quoted=legs.every(l=>l.quoted);
   const rows=legs.map(l=>`<tr>
-    <td class="l"><span class="name" data-id="${l.p.id}">${l.p.name}</span></td>
+    <td class="l"><button type="button" class="name" data-id="${l.p.id}">${l.p.name}</button></td>
     <td class="l"><span class="dim">${matchup(l.p)}</span></td>
     <td class="l">${LBL[l.stat]} <b>${l.side}</b> ${l.line.toFixed(1)}</td>
     <td class="num rec">${l.hits}/${l.n}</td>
     <td class="num">${pct(l.model)}</td>
     <td class="num">${fmtD(l.odds)}</td>
     <td class="l dim">${l.book||`<span class="dim2">his own median</span>`}</td>
-    <td><button class="add on" data-leg="${l.k}">&times;</button></td></tr>`).join("");
+    <td><button type="button" class="add on" data-leg="${l.k}" aria-label="Remove this leg from the slip">&times;</button></td></tr>`).join("");
   const ws=warnings(legs,pairs);
   const gap=joint-naive;
   box.innerHTML=`
@@ -1637,7 +1836,14 @@ function drawSlip(){
    takes the colour of the side it landed on. The counts sit above it,
    because "seven of ten" is the thing being asked and a reader should not
    have to total the bars to get it. */
-const PLOT_H=140;
+/* The plot's height lives in the stylesheet, where the breakpoint that
+   changes it also lives; the script asks for it rather than keeping a
+   second copy that goes stale on a phone. */
+function plotH(){
+  const v=parseFloat(getComputedStyle(document.documentElement)
+    .getPropertyValue("--plot-h"));
+  return v>0?v:140;
+}
 function overUnderChart(games,stat,line){
   const vals=games.map(g=>actual(g,stat));
   const over=vals.filter(v=>v>line).length;
@@ -1660,7 +1866,7 @@ function overUnderChart(games,stat,line){
     const v=vals[i], hit=v>line;
     const c=el("div","col");
     const bar=el("i",hit?"o":"u");
-    bar.style.height=Math.max(2,Math.round(PLOT_H*Math.min(v/top,1)))+"px";
+    bar.style.height=Math.max(2,Math.round(plotH()*Math.min(v/top,1)))+"px";
     c.append(bar);
     c.addEventListener("mouseenter",()=>showTip(plot,c,g,stat,v,line));
     c.addEventListener("mouseleave",hideTip);
@@ -1668,7 +1874,7 @@ function overUnderChart(games,stat,line){
   });
   plot.append(cols, el("div","base"));
   const th=el("div","thresh",`<span>${line.toFixed(1)}</span>`);
-  th.style.bottom=Math.round(PLOT_H*Math.min(line/top,1))+"px";
+  th.style.bottom=Math.round(plotH()*Math.min(line/top,1))+"px";
   plot.append(th);
   wrap.append(plot);
   // Past a dozen columns the date no longer fits under the opponent.
@@ -1691,7 +1897,7 @@ function showTip(plot,col,g,stat,v,line){
   plot.append(t);
   // Keep the tooltip inside the plot rather than letting it run off an edge.
   const pw=plot.clientWidth, cw=col.offsetLeft+col.offsetWidth/2;
-  t.style.left="0px"; t.style.bottom=(PLOT_H+8)+"px";
+  t.style.left="0px"; t.style.bottom=(plotH()+8)+"px";
   const w=t.offsetWidth;
   t.style.left=Math.max(0,Math.min(cw-w/2,pw-w))+"px";
 }
@@ -2042,6 +2248,8 @@ function wireRefresh(){
         go.onclick=()=>location.reload();
         no.onclick=()=>t.remove();
         t.append(go,no);
+        t.setAttribute("role","status");
+        t.setAttribute("aria-live","polite");
         document.body.append(t);
       }catch(e){}
     };
@@ -2099,7 +2307,7 @@ function wireRefresh(){
   }
   function follow(){
     panel.classList.remove("hide"); btn.disabled=true;
-    say('<span class="spin"></span>Refreshing','running ./daily.sh');
+    say('<span class="spin"></span>Refreshing\u2026','running ./daily.sh');
     if(timer)return;
     timer=setInterval(tick,700); tick();
   }
@@ -2189,7 +2397,7 @@ function wireRefresh(){
 /* ---------- wiring ---------- */
 function showTab(t){
   document.querySelectorAll("nav button").forEach(b=>
-    b.classList.toggle("on",b.dataset.t===t));
+    b.setAttribute("aria-selected",b.dataset.t===t?"true":"false"));
   ["home","trends","parlay","slip","player"].forEach(x=>
     $("#t-"+x).classList.toggle("hide",x!==t));
   if(t==="player")drawPlayer();
@@ -2197,6 +2405,56 @@ function showTab(t){
   if(t==="trends")drawTrends();
   if(t==="home")drawHome();
   if(t==="slip")drawSlip();
+}
+/* ---------- theme ----------
+   The system decides unless the reader says otherwise, and what they say
+   is remembered. The two theme-color metas in the head cover the system
+   case; an explicit choice has to set it, or the browser chrome stays on
+   the other theme. */
+const SUN='<circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.4M12 19.4v2.4'
+  +'M2.2 12h2.4M19.4 12h2.4M5.1 5.1l1.7 1.7M17.2 17.2l1.7 1.7'
+  +'M18.9 5.1l-1.7 1.7M6.8 17.2l-1.7 1.7"/>';
+const MOON='<path d="M20 14.1A8.2 8.2 0 1 1 9.9 4a6.8 6.8 0 0 0 10.1 10.1Z"/>';
+function sysDark(){
+  return !window.matchMedia||window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function themeNow(){
+  return document.documentElement.getAttribute("data-theme")
+      || (sysDark()?"dark":"light");
+}
+function paintTheme(){
+  const dark=themeNow()==="dark", b=$("#themebtn");
+  // The icon is the destination, not the current state: a sun means
+  // "go light".
+  $("#themeicon").innerHTML=dark?SUN:MOON;
+  b.setAttribute("aria-label",
+    dark?"Switch to the light theme":"Switch to the dark theme");
+  if(document.documentElement.hasAttribute("data-theme")){
+    document.querySelectorAll('meta[name=theme-color]').forEach(m=>m.remove());
+    const m=document.createElement("meta");
+    m.name="theme-color"; m.content=dark?"#0a0d14":"#f6f7f9";
+    document.head.append(m);
+  }
+}
+function wireTheme(){
+  let saved=null;
+  try{saved=localStorage.getItem("theme");}catch(e){}
+  if(saved==="dark"||saved==="light")
+    document.documentElement.setAttribute("data-theme",saved);
+  paintTheme();
+  $("#themebtn").onclick=()=>{
+    const next=themeNow()==="dark"?"light":"dark";
+    document.documentElement.setAttribute("data-theme",next);
+    try{localStorage.setItem("theme",next);}catch(e){}
+    paintTheme();
+    if(typeof drawPlayer==="function"&&!$("#t-player").classList.contains("hide"))
+      drawPlayer();
+  };
+  if(window.matchMedia)
+    window.matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change",()=>{
+        if(!document.documentElement.hasAttribute("data-theme"))paintTheme();
+      });
 }
 function init(){
   const m=D.meta;
@@ -2266,6 +2524,7 @@ function init(){
     $("#pxgame").value=""; $("#pxbooks").value="3"; $("#pxedge").value=70;
     drawSheets();
   };
+  wireTheme();
   saveSlip();
   wireRefresh();
   drawHome();
