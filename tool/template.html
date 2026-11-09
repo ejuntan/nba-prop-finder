@@ -461,6 +461,12 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent-line);
   animation:sp .7s linear infinite;vertical-align:-1px;
   margin-right:var(--s1)}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* A theme change is a switch, not an animation. Without this the few
+   elements that transition their background cross-fade on their own
+   while the rest of the page changes instantly, which reads as a flicker
+   in the fixtures row. */
+:root[data-switching] *,:root[data-switching] *::before,
+:root[data-switching] *::after{transition:none!important}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;
     animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -2447,7 +2453,11 @@ function wireTheme(){
   paintTheme();
   $("#themebtn").onclick=()=>{
     const next=themeNow()==="dark"?"light":"dark";
-    document.documentElement.setAttribute("data-theme",next);
+    const r=document.documentElement;
+    r.setAttribute("data-switching","");
+    requestAnimationFrame(()=>requestAnimationFrame(
+      ()=>r.removeAttribute("data-switching")));
+    r.setAttribute("data-theme",next);
     try{localStorage.setItem("theme",next);}catch(e){}
     paintTheme();
     if(typeof drawPlayer==="function"&&!$("#t-player").classList.contains("hide"))
