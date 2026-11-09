@@ -345,6 +345,14 @@ button.add{background:var(--panel2);border:1px solid var(--line2);
 button.add:hover{color:var(--ink);border-color:var(--accent)}
 button.add.on{background:var(--accent-soft);border-color:var(--accent-line);
   color:var(--accent)}
+/* The same control, widened to name the side it adds. A card has one
+   leg to offer and says so with a +; a player's page has two, and a
+   button that does not name its side would be a guess. */
+button.add.wide{width:auto;height:28px;padding:0 var(--s3);font-size:12px;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.picks{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap;
+  margin-top:var(--s2)}
+.picks .dim2{font-size:12px}
 
 /* A stated reason the slip is not what it looks like. Tinted ground and a
    1px border, not a coloured slab down one side. */
@@ -478,6 +486,9 @@ button.add.on{background:var(--accent-soft);border-color:var(--accent-line);
 }
 @media (max-width:700px){
   :root{--plot-h:120px}
+  /* A thumb, not a cursor: the two side buttons are the one control on
+     this page meant to be hit rather than read. */
+  button.add.wide{height:34px;padding:0 var(--s4)}
   .wrap{padding:0 max(var(--s4),env(safe-area-inset-left))
             calc(var(--s5) + env(safe-area-inset-bottom))
             max(var(--s4),env(safe-area-inset-right))}
@@ -1634,7 +1645,17 @@ function saveSlip(){
 }
 function toggleLeg(k){
   const i=SLIP.indexOf(k);
-  if(i>=0)SLIP.splice(i,1); else SLIP.push(k);
+  if(i>=0)SLIP.splice(i,1);
+  else{
+    // A slip holding both sides of one number cannot land, and the
+    // copula would price the pair as though it could: same player, same
+    // stat, so it reads the correlation as 1 rather than -1. Taking a
+    // side replaces the other, which is what a slip does anyway.
+    const [id,stat,side]=k.split("|");
+    const other=legKey(id,stat,side==="over"?"under":"over");
+    const j=SLIP.indexOf(other); if(j>=0)SLIP.splice(j,1);
+    SLIP.push(k);
+  }
   saveSlip();
 }
 /* A leg's chance of landing is that player's own record at that
@@ -1773,7 +1794,9 @@ function drawSlip(){
   if(!legs.length){
     box.innerHTML=`<div class="panel"><h3>The slip is empty</h3>
       <div class="hint"><span>Add legs with the <b>+</b> on
-      <b>Top props</b>. What this does that a sportsbook's slip does not:
+      <b>Top props</b> or <b>Trends</b>, or take either side of a number
+      from a player's own page on <b>Player</b>. What this does that a
+      sportsbook's slip does not:
       it measures how your legs have actually moved together in the
       players' own game logs, and prices the parlay with that
       correlation in it rather than multiplying the legs as though they
@@ -1913,6 +1936,34 @@ function showTip(plot,col,g,stat,v,line){
 function hideTip(){ const t=$("#tip"); if(t)t.remove(); }
 
 /* ---------- player card ---------- */
+/* Taking a side from the player's own page. Everywhere else a leg is
+   added from a card that already picked the side for you; here the
+   player came first and the side is still open, so both are offered.
+   The slip prices every leg at the board's number, so a line typed into
+   the box above adds nothing -- the buttons stay at the board's and say
+   which one they mean, rather than quietly pricing something else. */
+function pickBtns(p,stat,lf,typed){
+  if(p.out||lf.line==null)return "";
+  const btns=["over","under"].map(side=>{
+    const k=legKey(p.id,stat,side), lab=`${side} ${lf.line.toFixed(1)}`;
+    return `<button type="button" class="add wide${inSlip(k)?" on":""}"
+      data-leg="${k}" data-label="${lab}">${lab}</button>`;
+  }).join("");
+  return `<div class="picks">${btns}${typed?`<span class="dim2">the slip
+    prices at the board\u2019s ${lf.line.toFixed(1)}</span>`:""}</div>`;
+}
+/* Repaint the two buttons where they stand. Redrawing the page for a
+   change two characters wide would fold the markets table shut again
+   and throw the reader back to the top. */
+function paintPicks(){
+  $("#pcard").querySelectorAll(".add[data-leg]").forEach(b=>{
+    const on=inSlip(b.dataset.leg), lab=b.dataset.label;
+    b.classList.toggle("on",on);
+    b.textContent=(on?"\u2713 ":"")+lab;
+    b.setAttribute("aria-label",`${on?"Remove":"Add"} ${curPlayer.name} ${lab} ${
+      LBL[$("#pstat").value]} ${on?"from":"to"} the slip`);
+  });
+}
 function drawPlayer(){
   const p=curPlayer||D.players.slice().sort((a,b)=>b.mu.pra-a.mu.pra)[0];
   if(!p) return;
@@ -1974,7 +2025,8 @@ function drawPlayer(){
           <span class="dim">in the log</span></div>
         <div>Tonight's number</div><div class="num">${line.toFixed(1)}
           <span class="dim">${lineSrc==="book"?`from ${bq.n} book${bq.n===1?"":"s"}`
-            :lineSrc==="typed"?"typed":"no book quoting it"}</span></div>`)+`
+            :lineSrc==="typed"?"typed":"no book quoting it"}</span>
+          ${pickBtns(p,stat,lf,lineSrc==="typed"&&lf.line!==line)}</div>`)+`
       </div>
     </div>`);
   let mh=p.out?"":`<table><thead><tr><th class="l">Market</th>
@@ -1985,7 +2037,9 @@ function drawPlayer(){
     const L=lineFor(p,k).line;
     const t=L==null?{dec:0}:tallyGames((D.recent[p.id]||[]).slice(-10),k,L);
     mh+=`<tr${k===stat?' style="background:var(--panel2)"':''}>
-      <td class="l">${LBL[k]}</td><td class="num">${avgOf(p,k,10)}</td>
+      <td class="l"><button type="button" class="name"
+        data-stat="${k}">${LBL[k]}</button></td>
+      <td class="num">${avgOf(p,k,10)}</td>
       <td class="num dim">${avgOf(p,k,99)}</td>
       <td class="num dim">${bestOf(p,k)}</td>
       <td class="num">${L==null?dash:L.toFixed(1)}<span class="src ${
@@ -2033,6 +2087,14 @@ function drawPlayer(){
   box.append(splitsPanel(p,stat,line,lineSrc,bq?bq.n:0));
   box.append(defencePanel(p,stat,win));
   $("#pcard").innerHTML=""; $("#pcard").append(box);
+  $("#pcard").querySelectorAll(".add[data-leg]").forEach(b=>{
+    b.onclick=()=>{toggleLeg(b.dataset.leg);paintPicks();};});
+  // The markets table lists every market he has a record in; a name in
+  // it is the way to bring that market up here, where it can be taken.
+  $("#pcard").querySelectorAll("[data-stat]").forEach(b=>{
+    b.onclick=()=>{$("#pstat").value=b.dataset.stat;
+      $("#pline").value=""; drawPlayer();};});
+  paintPicks();
 }
 
 /* The same number, cut several ways. Recent form is the headline
@@ -2514,6 +2576,9 @@ function init(){
   });
   ["pstat","pline","plast","pwin"].forEach(id=>
     $("#"+id).addEventListener("input",()=>{
+      // A number typed for points is not a number for rebounds. It used
+      // to survive the switch and be measured against the new market.
+      if(id==="pstat")$("#pline").value="";
       drawPlayer();
     }));
   ["tstat","tgame","tlast","tsplit","tminmin","tseason","tsig"].forEach(id=>
