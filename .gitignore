@@ -16,4 +16,5 @@ tool/truth.json
 # board the live service serves, and committing it is the deploy.
 out/*.csv
 out/*.txt
+out/*.md
 data/.running/
