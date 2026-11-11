@@ -6,8 +6,8 @@ wrong, and the thing that moves minutes most is who is not playing. So:
 
   * every available player's baseline is his own recent minutes-when-he-
     played, weighted by how likely he is to be available tonight,
-  * the ESPN injury report knocks out the ones who are out and discounts
-    the questionable,
+  * the ESPN injury report knocks out the ones who are out or doubtful
+    and discounts the questionable,
   * a player ruled out stays on the board, greyed and unpriced, because
     who is missing is the thing that moves everyone else's minutes and a
     board that silently deletes him tells you nothing,
@@ -63,9 +63,21 @@ MIN_PROJ_MIN = 8.0      # below this a prop is not worth pricing
 # done, shrunk hard toward the league, and carries `thin` so the number is
 # never read as if it had a career behind it.
 
-# How likely the injury report leaves him available. "Out" is the only
-# status that is really information; the rest are a book's problem too.
-PLAY_PROB = {"out": 0.0, "doubtful": 0.15, "questionable": 0.55,
+# How likely the injury report leaves him available. "Out" and
+# "doubtful" are the two the league's own report means as a no; the rest
+# are a book's problem too.
+#
+# Doubtful is zero rather than a small chance. The league's own guidance
+# is that doubtful means roughly one in four, and in practice it is
+# nearer one in ten -- but the number here does two jobs, and they do not
+# want the same answer. As a probability 0.15 was defensible; as a
+# minutes budget it meant a doubtful starter still held 15% of his
+# minutes back from the bench players who are about to inherit them, and
+# left him on the board carrying a priced line nobody should bet. Zero
+# gets the redistribution right, which is where the night's value is, and
+# leaves him on the board greyed and unpriced, which is what the board
+# does with everyone it will not price.
+PLAY_PROB = {"out": 0.0, "doubtful": 0.0, "questionable": 0.55,
              "day-to-day": 0.75, "probable": 0.9, "available": 1.0,
              "game-time decision": 0.5}
 
