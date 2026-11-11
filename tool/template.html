@@ -1638,10 +1638,34 @@ let SLIP=[];
 try{ SLIP=JSON.parse(localStorage.getItem(SLIP_KEY)||"[]"); }catch(e){ SLIP=[]; }
 const legKey=(id,stat,side)=>`${id}|${stat}|${side}`;
 const inSlip=k=>SLIP.indexOf(k)>=0;
+/* A slip is for tonight. The board is rebuilt against a new slate every
+   day, and a leg whose player is not on it can no longer be priced --
+   legOf returns nothing for it. Those legs used to stay in storage and
+   keep counting towards the tab's number while the slip drew no row for
+   them, so the number sat there saying two over a slip holding one, and
+   nothing on the page could clear it. They are dropped here instead,
+   and the slip says how many went rather than shrinking in silence. */
+let SLIP_DROPPED=0;
+function pruneSlip(){
+  if(typeof D==="undefined"||!D||!D.players)return;
+  const live=SLIP.filter(k=>legOf(k));
+  const gone=SLIP.length-live.length;
+  if(gone){ SLIP_DROPPED+=gone; SLIP=live; }
+}
 function saveSlip(){
+  pruneSlip();
   try{ localStorage.setItem(SLIP_KEY,JSON.stringify(SLIP)); }catch(e){}
   const n=SLIP.length, b=$("#slipn");
   b.textContent=n; b.classList.toggle("hide",!n);
+}
+/* Said once, where the legs would have been. */
+function droppedNote(){
+  if(!SLIP_DROPPED)return "";
+  const n=SLIP_DROPPED;
+  return `<div class="note">${n} leg${n===1?"":"s"} ${n===1?"was":"were"}
+    on an earlier slate and ${n===1?"has":"have"} been dropped &mdash;
+    ${n===1?"that player is":"those players are"} not playing tonight, so
+    there is no number left to price ${n===1?"it":"them"} against.</div>`;
 }
 function toggleLeg(k){
   const i=SLIP.indexOf(k);
@@ -1792,7 +1816,7 @@ function drawSlip(){
   const box=$("#slipbody");
   const legs=SLIP.map(legOf).filter(Boolean);
   if(!legs.length){
-    box.innerHTML=`<div class="panel"><h3>The slip is empty</h3>
+    box.innerHTML=droppedNote()+`<div class="panel"><h3>The slip is empty</h3>
       <div class="hint"><span>Add legs with the <b>+</b> on
       <b>Top props</b> or <b>Trends</b>, or take either side of a number
       from a player's own page on <b>Player</b>. What this does that a
@@ -1823,7 +1847,7 @@ function drawSlip(){
     <td><button type="button" class="add on" data-leg="${l.k}" aria-label="Remove this leg from the slip">&times;</button></td></tr>`).join("");
   const ws=warnings(legs,pairs);
   const gap=joint-naive;
-  box.innerHTML=`
+  box.innerHTML=droppedNote()+`
     <div class="kpis">
       <div class="kpi"><div class="k">On their records</div>
         <div class="v">${pct(joint)}</div>
@@ -1859,7 +1883,7 @@ function drawSlip(){
     n.onclick=()=>selectPlayerById(+n.dataset.id);});
   box.querySelectorAll(".add").forEach(b=>{
     b.onclick=()=>{toggleLeg(b.dataset.leg);drawSlip();};});
-  $("#slipclear").onclick=()=>{SLIP=[];saveSlip();drawSlip();};
+  $("#slipclear").onclick=()=>{SLIP=[];SLIP_DROPPED=0;saveSlip();drawSlip();};
 }
 
 /* ---------- the over/under chart ----------
