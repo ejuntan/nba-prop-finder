@@ -77,7 +77,17 @@ MIN_PROJ_MIN = 8.0      # below this a prop is not worth pricing
 # gets the redistribution right, which is where the night's value is, and
 # leaves him on the board greyed and unpriced, which is what the board
 # does with everyone it will not price.
-PLAY_PROB = {"out": 0.0, "doubtful": 0.0, "questionable": 0.55,
+#
+# A suspension is the surest absence on the report -- it is a decision,
+# not a prognosis -- and it arrives under its own status rather than as
+# "out". Marcus Smart turned up suspended and priced at 19.6 minutes,
+# because an unrecognised status falls through to the player's own play
+# rate, which for a regular is near 1. That fallback is right for a word
+# the report has always used and wrong for a word it has just invented,
+# so unknown statuses are now named on stderr instead of passing as
+# available.
+PLAY_PROB = {"out": 0.0, "doubtful": 0.0, "suspension": 0.0,
+             "suspended": 0.0, "questionable": 0.55,
              "day-to-day": 0.75, "probable": 0.9, "available": 1.0,
              "game-time decision": 0.5}
 
@@ -142,6 +152,15 @@ def injuries(con):
     d = pd.read_sql("SELECT team, player_id, name, status, detail FROM injuries",
                     con)
     d["key"] = d.status.fillna("").str.strip().str.lower()
+    # A status nobody has taught this file about is treated as "no
+    # information" and falls back to the player's own play rate, which
+    # for a regular reads as available. That is the right answer for a
+    # blank and the wrong one for a word the feed has started using, so
+    # say so rather than letting it pass.
+    unknown = sorted(set(d.key[d.key.ne("") & ~d.key.isin(PLAY_PROB)]))
+    if unknown:
+        print("project: unrecognised injury status, treated as no "
+              "information: " + ", ".join(unknown), file=sys.stderr)
     return d
 
 
